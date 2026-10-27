@@ -1,5 +1,6 @@
 ﻿using System.Buffers.Binary;
 using System.Globalization;
+using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -87,6 +88,7 @@ internal static class Program
         CheckLobbyRoutes();
         CheckProfileMerge();
         CheckRelayEntries();
+        CheckRelayEndpoints();
 
         Console.WriteLine();
         if (_failures == 0)
@@ -307,6 +309,161 @@ internal static class Program
         Check("switching: a typo in config.json is record, not the relay's on", Resolved("onn", "on") == "Record/config.json", Resolved("onn", "on"));
         Check("switching: neither says, record", Resolved(null, null) == "Record/the default", Resolved(null, null));
         Check("switching: nonsense from the server is record", Resolved(null, "sometimes") == "Record/the default", Resolved(null, "sometimes"));
+    }
+
+    private static void CheckRelayEndpoints()
+    {
+        // 1. Literal IPv4 endpoint
+        var err1 = GamePingBooster.Core.Profiles.RelayPaths.ValidateEndpoint("203.0.113.10:51820", out var host1, out var port1);
+        Check("endpoint: valid IPv4 literal", err1 is null && host1 == "203.0.113.10" && port1 == 51820,
+            $"unexpected result: err={err1}, host={host1}, port={port1}");
+
+        // 2. Hostname endpoint
+        var err2 = GamePingBooster.Core.Profiles.RelayPaths.ValidateEndpoint("relay.example.com:51820", out var host2, out var port2);
+        Check("endpoint: valid hostname", err2 is null && host2 == "relay.example.com" && port2 == 51820,
+            $"unexpected result: err={err2}, host={host2}, port={port2}");
+
+        // 3. Bracketed IPv6 endpoint
+        var err3 = GamePingBooster.Core.Profiles.RelayPaths.ValidateEndpoint("[::1]:51820", out var host3, out var port3);
+        Check("endpoint: valid bracketed IPv6", err3 is null && host3 == "::1" && port3 == 51820,
+            $"unexpected result: err={err3}, host={host3}, port={port3}");
+
+        // 4. Boundary ports 1 and 65535
+        var errP1 = GamePingBooster.Core.Profiles.RelayPaths.ValidateEndpoint("203.0.113.10:1", out var h1, out var p1);
+        Check("endpoint: valid boundary port 1", errP1 is null && h1 == "203.0.113.10" && p1 == 1,
+            $"unexpected result: err={errP1}, host={h1}, port={p1}");
+
+        var errP65535 = GamePingBooster.Core.Profiles.RelayPaths.ValidateEndpoint("203.0.113.10:65535", out var hMax, out var pMax);
+        Check("endpoint: valid boundary port 65535", errP65535 is null && hMax == "203.0.113.10" && pMax == 65535,
+            $"unexpected result: err={errP65535}, host={hMax}, port={pMax}");
+
+        // 5. Missing port
+        var err4 = GamePingBooster.Core.Profiles.RelayPaths.ValidateEndpoint("relay.example.com", out _, out _);
+        Check("endpoint: missing port is rejected", err4 is not null, "missing port was accepted");
+
+        // 6. Port 0 and negative port
+        var errPort0 = GamePingBooster.Core.Profiles.RelayPaths.ValidateEndpoint("203.0.113.10:0", out _, out _);
+        Check("endpoint: port 0 is rejected", errPort0 is not null, "port 0 was accepted");
+
+        var errPortNeg = GamePingBooster.Core.Profiles.RelayPaths.ValidateEndpoint("203.0.113.10:-1", out _, out _);
+        Check("endpoint: negative port is rejected", errPortNeg is not null, "negative port was accepted");
+
+        // 7. Invalid port range (> 65535)
+        var err5 = GamePingBooster.Core.Profiles.RelayPaths.ValidateEndpoint("relay.example.com:70000", out _, out _);
+        Check("endpoint: port > 65535 is rejected", err5 is not null, "port 70000 was accepted");
+
+        // 8. Non-numeric port
+        var err6 = GamePingBooster.Core.Profiles.RelayPaths.ValidateEndpoint("relay.example.com:abc", out _, out _);
+        Check("endpoint: non-numeric port is rejected", err6 is not null, "port abc was accepted");
+
+        // 9. Missing host
+        var errMissingHost = GamePingBooster.Core.Profiles.RelayPaths.ValidateEndpoint(":51820", out _, out _);
+        Check("endpoint: missing host is rejected", errMissingHost is not null, "missing host was accepted");
+
+        // 10. Malformed bracket IPv6
+        var errBracket = GamePingBooster.Core.Profiles.RelayPaths.ValidateEndpoint("[::1:51820", out _, out _);
+        Check("endpoint: bracket malformed is rejected", errBracket is not null, "bracket malformed was accepted");
+
+        // 11. Unbracketed IPv6
+        var errUnbracketed = GamePingBooster.Core.Profiles.RelayPaths.ValidateEndpoint("2001:db8::1:51820", out _, out _);
+        Check("endpoint: unbracketed IPv6 is rejected", errUnbracketed is not null, "unbracketed IPv6 was accepted");
+
+        // 12. Invalid host syntax
+        var err7 = GamePingBooster.Core.Profiles.RelayPaths.ValidateEndpoint("invalid host name:51820", out _, out _);
+        Check("endpoint: invalid hostname with spaces is rejected", err7 is not null, "spaces in host was accepted");
+
+        // 13. Resolve literal IPv4 (deterministic, no network lookup)
+        try
+        {
+            var resLit = GamePingBooster.Core.Profiles.RelayPaths.ResolveEndpointAsync("203.0.113.10:51820").GetAwaiter().GetResult();
+            Check("endpoint resolve: literal IPv4 returns as-is", resLit == "203.0.113.10:51820",
+                $"expected 203.0.113.10:51820, got {resLit}");
+        }
+        catch (Exception ex)
+        {
+            Fail("endpoint resolve: literal IPv4 returns as-is", ex.Message);
+        }
+
+        // 14. Resolve literal IPv6 (deterministic, no network lookup)
+        try
+        {
+            var resIp6 = GamePingBooster.Core.Profiles.RelayPaths.ResolveEndpointAsync("[::1]:51820").GetAwaiter().GetResult();
+            Check("endpoint resolve: literal IPv6 returns bracketed form", resIp6 == "[::1]:51820",
+                $"expected [::1]:51820, got {resIp6}");
+        }
+        catch (Exception ex)
+        {
+            Fail("endpoint resolve: literal IPv6 returns bracketed form", ex.Message);
+        }
+
+        // 15. Resolve localhost (deterministic, AF_INET resolves to 127.0.0.1)
+        try
+        {
+            var resLocal = GamePingBooster.Core.Profiles.RelayPaths.ResolveEndpointAsync("localhost:51820").GetAwaiter().GetResult();
+            Check("endpoint resolve: localhost resolves to 127.0.0.1", resLocal == "127.0.0.1:51820",
+                $"expected 127.0.0.1:51820, got {resLocal}");
+        }
+        catch (Exception ex)
+        {
+            Fail("endpoint resolve: localhost resolves to 127.0.0.1", ex.Message);
+        }
+
+        // 16. Resolve invalid endpoint throws FormatException
+        var threwFormat = false;
+        try
+        {
+            GamePingBooster.Core.Profiles.RelayPaths.ResolveEndpointAsync("invalid:endpoint:format").GetAwaiter().GetResult();
+        }
+        catch (FormatException)
+        {
+            threwFormat = true;
+        }
+        Check("endpoint resolve: invalid endpoint throws FormatException", threwFormat,
+            "invalid endpoint did not throw FormatException");
+
+        // 17. Pre-cancelled hostname call asserts OperationCanceledException
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        var threwCancelled = false;
+        try
+        {
+            GamePingBooster.Core.Profiles.RelayPaths.ResolveEndpointAsync("relay.invalid:51820", ct: cts.Token).GetAwaiter().GetResult();
+        }
+        catch (OperationCanceledException)
+        {
+            threwCancelled = true;
+        }
+        Check("endpoint resolve: pre-cancelled token throws OperationCanceledException", threwCancelled,
+            "pre-cancelled call did not throw OperationCanceledException");
+
+        // 18. Resolve unresolvable host (.invalid NXDOMAIN fixture) throws SocketException or TimeoutException
+        var threwUnresolvable = false;
+        try
+        {
+            GamePingBooster.Core.Profiles.RelayPaths.ResolveEndpointAsync("relay.invalid:51820", timeout: TimeSpan.FromMilliseconds(1000)).GetAwaiter().GetResult();
+        }
+        catch (Exception ex) when (ex is SocketException or TimeoutException)
+        {
+            threwUnresolvable = true;
+        }
+        Check("endpoint resolve: unresolvable host throws", threwUnresolvable,
+            "resolving .invalid host did not throw SocketException or TimeoutException");
+
+        // 19. Optional live DNS test (opt-in via GPB_CHECK_LIVE_DNS or GPB_TEST_LIVE_DNS)
+        if (string.Equals(Environment.GetEnvironmentVariable("GPB_CHECK_LIVE_DNS"), "1", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(Environment.GetEnvironmentVariable("GPB_TEST_LIVE_DNS"), "1", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var resLive = GamePingBooster.Core.Profiles.RelayPaths.ResolveEndpointAsync("ping.hollow-agent.xyz:51820").GetAwaiter().GetResult();
+                Check("endpoint resolve: optional live DNS ping.hollow-agent.xyz",
+                    resLive.EndsWith(":51820"), $"got {resLive}");
+            }
+            catch (Exception ex)
+            {
+                Fail("endpoint resolve: optional live DNS ping.hollow-agent.xyz", ex.Message);
+            }
+        }
     }
 
     /// <summary>

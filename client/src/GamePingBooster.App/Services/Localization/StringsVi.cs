@@ -133,10 +133,10 @@ internal static class StringsVi
 
         ["pipe.notConnected"] = "Chưa kết nối tới dịch vụ nền.",
 
-        ["tray.show"] = "Mở Game Ping Booster",
+        ["tray.show"] = "Mở Hollow Ping Booster",
         ["tray.exit"] = "Thoát",
-        ["tray.tooltip"] = "Game Ping Booster - {0}",
-        ["tray.tooltipWithPing"] = "Game Ping Booster - {0}, {1}",
+        ["tray.tooltip"] = "Hollow Ping Booster - {0}",
+        ["tray.tooltipWithPing"] = "Hollow Ping Booster - {0}, {1}",
 
         // ------------------------------------------------------------------ settings window
         ["settings.title"] = "Cài đặt máy chủ",
@@ -153,7 +153,7 @@ internal static class StringsVi
         ["settings.psk.hintNew"] = "Bộ cài máy chủ in ra khoá này, ngay cạnh địa chỉ.",
         ["settings.licence"] = "Máy chủ giấy phép",
         ["settings.licence.hint"] =
-            "Nơi tài khoản Game Ping Booster của bạn đăng nhập và nơi lấy danh sách game. Đã được điền sẵn - cứ để nguyên. " +
+            "Nơi tài khoản Hollow Ping Booster của bạn đăng nhập và nơi lấy danh sách game. Đã được điền sẵn - cứ để nguyên. " +
             "Chỉ xoá đi nếu bạn tự chạy máy chủ riêng với khoá ở trên.",
         ["settings.quality"] = "Gửi chất lượng kết nối sau mỗi trận",
         ["settings.quality.hint"] =
@@ -170,7 +170,7 @@ internal static class StringsVi
 
         // ------------------------------------------------------------------ update window
         // ------------------------------------------------------------------ closing the window
-        ["tray.notice.title"] = "Game Ping Booster vẫn đang chạy",
+        ["tray.notice.title"] = "Hollow Ping Booster vẫn đang chạy",
         ["tray.notice.body"] = "App đang chạy dưới khay và vẫn tăng tốc khi bạn chơi. Bấm vào biểu tượng để mở lại.",
         ["close.window.title"] = "Đóng app",
         ["close.title"] = "Bạn muốn làm gì?",
@@ -191,7 +191,7 @@ internal static class StringsVi
         ["update.subtitle"] = "Bạn đang dùng v{0}. Dung lượng tải {1}.",
         ["update.subtitleNoSize"] = "Bạn đang dùng v{0}.",
         ["update.body"] =
-            "App sẽ tải bản mới về trước. Sau đó Game Ping Booster đóng lại, cài bản mới rồi tự mở lên. Windows sẽ " +
+            "App sẽ tải bản mới về trước. Sau đó Hollow Ping Booster đóng lại, cài bản mới rồi tự mở lên. Windows sẽ " +
             "hỏi quyền để cài.",
         ["update.warn.game"] =
             "{0} đang chạy. Nếu bạn đang trong trận thì chơi xong hãy cập nhật: cập nhật sẽ ngắt kết nối, và game " +
@@ -207,7 +207,7 @@ internal static class StringsVi
         ["update.installing.waiting"] = "Đang chờ Windows cho phép cài...",
         ["update.installing.disconnecting"] = "Đang ngắt kết nối...",
         ["update.installing.waitingFull"] =
-            "Đang chờ Windows cho phép cài. Game Ping Booster sẽ đóng lại rồi tự mở lên.",
+            "Đang chờ Windows cho phép cài. Hollow Ping Booster sẽ đóng lại rồi tự mở lên.",
         ["update.releasePage"] = "Mở trang tải bản mới",
         ["update.close"] = "Đóng",
         ["update.fail.download"] =
@@ -219,7 +219,7 @@ internal static class StringsVi
         ["update.fail.notStarted"] =
             "Bộ cài không khởi động được. Nếu bạn vừa bấm No lúc Windows hỏi quyền, bấm Cập nhật để thử lại.",
         ["update.fail.installed"] =
-            "Bản mới đã được cài. Đóng Game Ping Booster rồi mở lại để dùng bản mới.",
+            "Bản mới đã được cài. Đóng Hollow Ping Booster rồi mở lại để dùng bản mới.",
         ["update.fail.service"] =
             "Bản cập nhật không thay được dịch vụ đang chạy. Nếu cửa sổ Services đang mở, đóng nó lại rồi thử lại.",
         ["update.fail.other"] =
@@ -341,7 +341,7 @@ internal static class StringsVi
         ["auth.page.mismatch.title"] = "Lượt đăng nhập không khớp",
         ["auth.page.mismatch.detail"] = "Đóng tab này và bắt đầu lại từ app.",
         ["auth.page.done.title"] = "Đã đăng nhập",
-        ["auth.page.done.detail"] = "Bạn có thể đóng tab này và quay lại Game Ping Booster.",
+        ["auth.page.done.detail"] = "Bạn có thể đóng tab này và quay lại Hollow Ping Booster.",
         ["auth.pageReported"] = "Trang đăng nhập báo: {0}",
         ["auth.mismatch"] = "Lượt đăng nhập trả về không phải lượt mà app này vừa bắt đầu. Chưa có gì bị thay đổi. Hãy thử lại, và nếu vẫn bị thì tắt các bản app khác đang mở trước.",
         ["auth.timeout"] = "Trình duyệt không phản hồi trong {0} phút. Nếu không thấy cửa sổ trình duyệt nào mở ra, hãy kiểm tra Windows đã chọn trình duyệt mặc định chưa.",

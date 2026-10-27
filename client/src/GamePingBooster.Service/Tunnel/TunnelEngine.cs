@@ -605,7 +605,7 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
         {
             _log($"Loaded the {source} profile from {chosen} ({games})");
         }
-        ApplySelfHostedRelay();
+        await ApplySelfHostedRelayAsync(ct).ConfigureAwait(false);
     }
 
     private static ProfileBundle ParseProfile(string json, string path) =>
@@ -656,10 +656,11 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
             {
                 await LoadProfileAsync(token).ConfigureAwait(false);
             }
-            catch (Exception ex) when (_profile is not null)
+            catch (Exception ex) when (_profile is not null && (_config.RelayEndpoints.Count == 0 || (_profile.Relays.Count > 0 && _profile.Relays.All(r => r.Id.StartsWith("self-", StringComparison.OrdinalIgnoreCase)))))
             {
                 // A profile we cannot re-read is not a reason to refuse a connection when we
-                // already have a good copy in hand.
+                // already have a good copy in hand. Self-hosted relays must never fall back to
+                // vendor relays if resolution fails.
                 _log($"Could not reload the profile ({ex.Message}) - continuing with the one already loaded.");
             }
 
@@ -3569,20 +3570,27 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
     /// Called after every profile load, so a fetched profile cannot quietly reintroduce the
     /// list it was told to ignore.
     /// </summary>
-    private void ApplySelfHostedRelay()
+    private async Task ApplySelfHostedRelayAsync(CancellationToken ct)
     {
         if (_profile is null || _config.RelayEndpoints.Count == 0) return;
 
-        // Each is named after its own address. A single friendly label across several relays
-        // would be meaningless, and inventing "Relay 1", "Relay 2" tells the user less than the
-        // address they typed - which is also what they need to see when one of them is failing.
-        _profile.Relays = [.. _config.RelayEndpoints.Select((endpoint, i) => new RelayEntry
+        // Wipe vendor relays immediately so a resolution failure never falls back to them.
+        _profile.Relays = [];
+
+        var resolved = new List<RelayEntry>(_config.RelayEndpoints.Count);
+        for (var i = 0; i < _config.RelayEndpoints.Count; i++)
         {
-            Id = $"self-{i + 1}",
-            Name = endpoint,
-            Location = string.Empty,
-            Endpoint = endpoint,
-        })];
+            var endpoint = _config.RelayEndpoints[i];
+            var numericEndpoint = await RelayPaths.ResolveEndpointAsync(endpoint, ct).ConfigureAwait(false);
+            resolved.Add(new RelayEntry
+            {
+                Id = $"self-{i + 1}",
+                Name = endpoint,
+                Location = string.Empty,
+                Endpoint = numericEndpoint,
+            });
+        }
+        _profile.Relays = resolved;
 
         _log($"Using {_profile.Relays.Count} self-hosted relay(s) and ignoring the profile's list: " +
              string.Join(", ", _config.RelayEndpoints));
@@ -3651,14 +3659,9 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
         // that "an address is invalid" when four were pasted in is not much of a report.
         foreach (var endpoint in cleaned)
         {
-            var colon = endpoint.LastIndexOf(':');
-            if (colon <= 0 || colon == endpoint.Length - 1)
+            if (RelayPaths.ValidateEndpoint(endpoint, out _, out _) is { } err)
             {
-                return $"\"{endpoint}\" needs a port, for example 203.0.113.10:51820";
-            }
-            if (!int.TryParse(endpoint[(colon + 1)..], out var port) || port < 1 || port > 65535)
-            {
-                return $"\"{endpoint}\" does not end in a port between 1 and 65535.";
+                return err;
             }
         }
         // The relay refuses anything shorter, so catching it here saves a handshake that could

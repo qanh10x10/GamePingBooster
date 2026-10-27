@@ -155,7 +155,7 @@ jobs:
           .\gpb.ps1 installer
           if ($LASTEXITCODE -ne 0) { throw "gpb.ps1 installer failed" }
 
-          $installer = "installer\dist\GamePingBooster-Setup-$env:VERSION.exe"
+          $installer = "installer\dist\HollowPingBooster-Setup-$env:VERSION.exe"
           if (-not (Test-Path $installer)) { throw "Expected installer not found: $installer" }
           Write-Host "Installer OK: $installer"
 
@@ -194,7 +194,7 @@ jobs:
           $tag = "${{ github.ref_name }}"
           $repo = "${{ github.repository }}"
           $assets = @(
-            "installer\dist\GamePingBooster-Setup-$env:VERSION.exe",
+            "installer\dist\HollowPingBooster-Setup-$env:VERSION.exe",
             "GamePingBooster-Server-$env:VERSION-linux-amd64.tar.gz"
           )
 

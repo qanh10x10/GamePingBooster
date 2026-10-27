@@ -135,10 +135,10 @@ internal static class StringsEn
 
         ["pipe.notConnected"] = "Not connected to the background service.",
 
-        ["tray.show"] = "Show Game Ping Booster",
+        ["tray.show"] = "Show Hollow Ping Booster",
         ["tray.exit"] = "Exit",
-        ["tray.tooltip"] = "Game Ping Booster - {0}",
-        ["tray.tooltipWithPing"] = "Game Ping Booster - {0}, {1}",
+        ["tray.tooltip"] = "Hollow Ping Booster - {0}",
+        ["tray.tooltipWithPing"] = "Hollow Ping Booster - {0}, {1}",
 
         // ------------------------------------------------------------------ settings window
         ["settings.title"] = "Relay settings",
@@ -156,7 +156,7 @@ internal static class StringsEn
         ["settings.psk.hintNew"] = "Printed by the relay's installer, next to the endpoint.",
         ["settings.licence"] = "Licence server",
         ["settings.licence.hint"] =
-            "Where your Game Ping Booster account signs in, and where the game list comes from. Already filled in - " +
+            "Where your Hollow Ping Booster account signs in, and where the game list comes from. Already filled in - " +
             "leave it as it is. Clear it only if you run your own relays with the key above.",
         ["settings.quality"] = "Send connection quality after each match",
         ["settings.quality.hint"] =
@@ -173,7 +173,7 @@ internal static class StringsEn
 
         // ------------------------------------------------------------------ update window
         // ------------------------------------------------------------------ closing the window
-        ["tray.notice.title"] = "Game Ping Booster is still running",
+        ["tray.notice.title"] = "Hollow Ping Booster is still running",
         ["tray.notice.body"] = "The app is in the tray and keeps boosting while you play. Click its icon to open it again.",
         ["close.window.title"] = "Close the app",
         ["close.title"] = "What would you like to do?",
@@ -194,7 +194,7 @@ internal static class StringsEn
         ["update.subtitle"] = "You have v{0}. Download size {1}.",
         ["update.subtitleNoSize"] = "You have v{0}.",
         ["update.body"] =
-            "The new version is downloaded first. Then Game Ping Booster closes, installs it, and opens again by " +
+            "The new version is downloaded first. Then Hollow Ping Booster closes, installs it, and opens again by " +
             "itself. Windows will ask for permission to install.",
         ["update.warn.game"] =
             "{0} is running. If you are in a match, finish it first: updating disconnects you, and the game goes " +
@@ -210,7 +210,7 @@ internal static class StringsEn
         ["update.installing.waiting"] = "Waiting for Windows permission to install...",
         ["update.installing.disconnecting"] = "Disconnecting...",
         ["update.installing.waitingFull"] =
-            "Waiting for Windows permission to install. Game Ping Booster will close and open again by itself.",
+            "Waiting for Windows permission to install. Hollow Ping Booster will close and open again by itself.",
         ["update.releasePage"] = "Open release page",
         ["update.close"] = "Close",
         ["update.fail.download"] =
@@ -222,7 +222,7 @@ internal static class StringsEn
         ["update.fail.notStarted"] =
             "The installer did not start. If you answered No when Windows asked for permission, press Update to try again.",
         ["update.fail.installed"] =
-            "The update is installed. Close Game Ping Booster and open it again to use the new version.",
+            "The update is installed. Close Hollow Ping Booster and open it again to use the new version.",
         ["update.fail.service"] =
             "The update could not replace the running service. If the Services window is open, close it and try again.",
         ["update.fail.other"] =
@@ -344,7 +344,7 @@ internal static class StringsEn
         ["auth.page.mismatch.title"] = "That sign-in did not match",
         ["auth.page.mismatch.detail"] = "Close this tab and start again from the app.",
         ["auth.page.done.title"] = "Signed in",
-        ["auth.page.done.detail"] = "You can close this tab and go back to Game Ping Booster.",
+        ["auth.page.done.detail"] = "You can close this tab and go back to Hollow Ping Booster.",
         ["auth.pageReported"] = "The sign-in page reported: {0}",
         ["auth.mismatch"] = "The sign-in that came back is not the one this app started. Nothing was changed. Try again, and if it keeps happening close any other copy of the app first.",
         ["auth.timeout"] = "No answer from the browser within {0} minutes. If no browser window opened, check that Windows has a default browser set.",

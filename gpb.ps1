@@ -1048,7 +1048,7 @@ switch ($Verb.ToLowerInvariant()) {
 
         $out = Join-Path $root 'installer\dist'
         Say "Installer written to $out" 'Green'
-        Say "  GamePingBooster-Setup-$version.exe" 'Green'
+        Say "  HollowPingBooster-Setup-$version.exe" 'Green'
         Warn "It is NOT code signed. Windows SmartScreen will warn every person who runs it,"
         Warn "and many will stop there. Signing needs a certificate you have to buy."
     }

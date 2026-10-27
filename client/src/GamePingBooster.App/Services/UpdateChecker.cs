@@ -31,7 +31,7 @@ namespace GamePingBooster.App.Services;
 public sealed class UpdateChecker : IAsyncDisposable
 {
     /// <summary>Where releases are published. The same repository ./gpb release pushes tags to.</summary>
-    public const string Repository = "VietNguyenR/GamePingBooster";
+    public const string Repository = "qanh10x10/GamePingBooster";
 
     /// <summary>
     /// Every six hours. A release is not urgent, and unauthenticated calls to GitHub's API are
@@ -233,13 +233,13 @@ public sealed class UpdateChecker : IAsyncDisposable
     /// it should be - in which case the update falls back to opening the release page.
     ///
     /// Everything is checked against what ./gpb release publishes rather than trusted: the name is
-    /// exactly GamePingBooster-Setup-{version}.exe, the URL is a download from THIS repository's
+    /// exactly HollowPingBooster-Setup-{version}.exe, the URL is a download from THIS repository's
     /// tag, and the digest is GitHub's own sha256 of the uploaded file. The file is run elevated,
     /// so a response that does not match all three is not something to download.
     /// </summary>
     internal static (string Url, string Sha256, long Size)? FindInstaller(GitHubRelease release, string version)
     {
-        var name = $"GamePingBooster-Setup-{version}.exe";
+        var name = $"HollowPingBooster-Setup-{version}.exe";
         var urlPrefix = $"https://github.com/{Repository}/releases/download/v{version}/";
 
         var asset = release.Assets?.FirstOrDefault(a => string.Equals(a.Name, name, StringComparison.Ordinal));
@@ -272,7 +272,7 @@ public sealed class UpdateChecker : IAsyncDisposable
 
     /// <summary>Where the last answer from GitHub is kept, per Windows user.</summary>
     internal static string CachePath =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GamePingBooster", "update-check.json");
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GamePingBooster", "hollow-update-check.json");
 
     private static UpdateCache? ReadCache()
     {
