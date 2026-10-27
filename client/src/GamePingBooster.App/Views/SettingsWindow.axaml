@@ -52,7 +52,7 @@
                AcceptsReturn="True" TextWrapping="NoWrap"
                MinHeight="88" MaxHeight="140"
                VerticalContentAlignment="Top"
-               PlaceholderText="203.0.113.10:51820" />
+               PlaceholderText="ping.hollow-agent.xyz:51820" />
       <TextBlock Classes="hint" Text="{DynamicResource settings.relays.hint}" />
     </StackPanel>
 

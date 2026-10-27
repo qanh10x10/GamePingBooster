@@ -4,13 +4,15 @@ Self-host fork of Game Ping Booster. Windows settings: relay `ping.hollow-agent.
 existing VPS pre-shared key, and **empty Licence server**. See [self-host setup and verification](docs/HOLLOW-SELFHOST.md).
 The public source base is 0.3.9; this fork does not claim source parity with the closed 0.5.7 release.
 
-Latency reducer for PUBG on Windows, aimed at players in Vietnam. Gameplay traffic is diverted
-through a VPS abroad whose route to the game servers beats the one the local ISP picks by default.
+Self-host mode defaults to **full tunnel**: IPv4 Internet traffic from all games and applications
+uses the configured VPS, without game profiles or process detection. Windows DNS uses an IPv4
+resolver through that tunnel; outbound IPv6 is blocked while connected because the relay protocol
+only carries IPv4. Existing local/LAN routes and the physical route to the relay stay direct.
+Downloads and updates also consume VPS bandwidth; a tunnel does not guarantee lower ping.
 
-No injection, no reading game memory, no DLL hooks. The whole mechanism is a virtual network
-adapter plus entries in the Windows routing table: destinations belonging to the game go through
-the tunnel, everything else keeps using the normal path. Detecting that the game is running means
-listing processes, exactly as Task Manager does.
+No injection, no reading game memory, no DLL hooks. A virtual network adapter and Windows routing
+carry the packets. The original per-game mode is retained for licensed installations or an explicit
+`"fullTunnel": false`; the profile-building sections below describe that legacy mode.
 
 ## Layout
 

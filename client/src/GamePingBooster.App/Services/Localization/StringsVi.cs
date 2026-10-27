@@ -17,6 +17,10 @@ internal static class StringsVi
         // ------------------------------------------------------------------ main window
         ["main.menu.tip"] = "Menu",
         ["main.menu.settings"] = "Cài đặt",
+        ["fullTunnel.scope"] = "Phạm vi",
+        ["fullTunnel.apps"] = "Mọi game và ứng dụng",
+        ["fullTunnel.hint"] = "Full tunnel: toàn bộ Internet đi qua VPS. IPv6 bị chặn khi kết nối.",
+        ["svc.fullTunnelConnected"] = "Full tunnel qua {0} - mọi game và ứng dụng",
         ["main.menu.games"] = "Game được hỗ trợ",
         ["main.menu.reportLag"] = "Báo lag",
         ["main.menu.logs"] = "Mở thư mục log",
@@ -153,8 +157,8 @@ internal static class StringsVi
         ["settings.psk.hintNew"] = "Bộ cài máy chủ in ra khoá này, ngay cạnh địa chỉ.",
         ["settings.licence"] = "Máy chủ giấy phép",
         ["settings.licence.hint"] =
-            "Nơi tài khoản Hollow Ping Booster của bạn đăng nhập và nơi lấy danh sách game. Đã được điền sẵn - cứ để nguyên. " +
-            "Chỉ xoá đi nếu bạn tự chạy máy chủ riêng với khoá ở trên.",
+            "Để trống khi dùng VPS riêng và full tunnel (mọi game, ứng dụng; không cần profile game). " +
+            "Chỉ nhập URL nếu bạn dùng một dịch vụ giấy phép riêng.",
         ["settings.quality"] = "Gửi chất lượng kết nối sau mỗi trận",
         ["settings.quality.hint"] =
             "Ping, các cú giật và chỗ sinh ra mỗi cú giật đó - mạng nhà bạn, đường tới máy chủ, bản thân máy chủ, hay máy " +

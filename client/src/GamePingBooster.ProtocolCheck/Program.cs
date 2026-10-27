@@ -89,6 +89,7 @@ internal static class Program
         CheckProfileMerge();
         CheckRelayEntries();
         CheckRelayEndpoints();
+        CheckFullTunnelStatus();
 
         Console.WriteLine();
         if (_failures == 0)
@@ -100,6 +101,20 @@ internal static class Program
                                 "would not understand each other. Fix GpbProtocol.cs, or regenerate the " +
                                 "vectors only if the format change was deliberate and the Go side is done.");
         return 1;
+    }
+
+    private static void CheckFullTunnelStatus()
+    {
+        var context = GamePingBooster.Core.Ipc.IpcJsonContext.Default;
+        var status = JsonSerializer.Deserialize("""{"fullTunnel":true}""", context.StatusMessage)!;
+        var wire = JsonSerializer.Serialize(status, context.StatusMessage);
+        using var json = JsonDocument.Parse(wire);
+        Check("IPC: full tunnel survives the status round trip",
+            json.RootElement.TryGetProperty("fullTunnel", out var enabled) && enabled.GetBoolean(), "fullTunnel flag was lost");
+        var legacy = JsonSerializer.Deserialize("{}", context.StatusMessage)!;
+        using var old = JsonDocument.Parse(JsonSerializer.Serialize(legacy, context.StatusMessage));
+        Check("IPC: older service status defaults to game mode",
+            !old.RootElement.TryGetProperty("fullTunnel", out var missing) || !missing.GetBoolean(), "legacy status unexpectedly enabled full tunnel");
     }
 
     // ------------------------------------------------------------------ checks

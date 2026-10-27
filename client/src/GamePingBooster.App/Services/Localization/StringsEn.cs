@@ -16,6 +16,10 @@ internal static class StringsEn
         // ------------------------------------------------------------------ main window
         ["main.menu.tip"] = "Menu",
         ["main.menu.settings"] = "Settings",
+        ["fullTunnel.scope"] = "Scope",
+        ["fullTunnel.apps"] = "All games and apps",
+        ["fullTunnel.hint"] = "Full tunnel: all Internet traffic uses your VPS. IPv6 is blocked while connected.",
+        ["svc.fullTunnelConnected"] = "Full tunnel through {0} - all games and apps",
         ["main.menu.games"] = "Supported games",
         ["main.menu.reportLag"] = "Report lag",
         ["main.menu.logs"] = "Open logs folder",
@@ -156,8 +160,8 @@ internal static class StringsEn
         ["settings.psk.hintNew"] = "Printed by the relay's installer, next to the endpoint.",
         ["settings.licence"] = "Licence server",
         ["settings.licence.hint"] =
-            "Where your Hollow Ping Booster account signs in, and where the game list comes from. Already filled in - " +
-            "leave it as it is. Clear it only if you run your own relays with the key above.",
+            "Leave empty for your VPS and full tunnel (all games and apps, no game profiles). " +
+            "Only enter a URL here if you use a separate licence service.",
         ["settings.quality"] = "Send connection quality after each match",
         ["settings.quality.hint"] =
             "Ping, lag spikes and which part of the path each one came from - your network, the route to the relay, " +

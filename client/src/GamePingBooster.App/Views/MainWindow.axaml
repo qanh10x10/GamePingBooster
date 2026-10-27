@@ -108,7 +108,7 @@
             <MenuItem Header="{Binding AccountMenuText}" Click="OnAccountClick"
                       IsVisible="{Binding ShowLicence}" />
             <MenuItem Header="{DynamicResource main.menu.settings}" Click="OnSettingsClick" />
-            <MenuItem Header="{DynamicResource main.menu.games}" Click="OnGamesClick" />
+            <MenuItem Header="{DynamicResource main.menu.games}" Click="OnGamesClick" IsVisible="{Binding GameMode}" />
             <Separator Background="#242424" />
             <MenuItem Header="{DynamicResource main.menu.reportLag}" Click="OnReportLagClick" />
             <MenuItem Header="{DynamicResource main.menu.logs}" Click="OnLogsClick" />
@@ -149,8 +149,8 @@
              tooltip: a relay or game name, or a message, must never push the card wider than
              the window. Labels are short and fixed, so they keep their natural width. -->
         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" >
-          <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="{DynamicResource main.label.gamePing}" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Classes="value" Text="{Binding GamePingText}" ToolTip.Tip="{Binding GamePingTip}" />
+          <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="{DynamicResource main.label.gamePing}" IsVisible="{Binding GameMode}" />
+          <TextBlock Grid.Row="0" Grid.Column="1" Classes="value" Text="{Binding GamePingText}" ToolTip.Tip="{Binding GamePingTip}" IsVisible="{Binding GameMode}" />
 
           <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="{DynamicResource main.label.relayPing}" Margin="0,10,0,0" />
           <TextBlock Grid.Row="1" Grid.Column="1" Classes="value" Text="{Binding PingText}" Margin="0,10,0,0" />
@@ -168,10 +168,10 @@
                does not change height mid-session. At most three (four tunnels, home
                included); three long names can run past the card and are clipped (ClipToBounds), the tooltip lists every
                region. Each one is its own TextBlock so the carrier alone turns green. -->
-          <TextBlock Grid.Row="4" Grid.Column="0" Classes="label" Text="{DynamicResource main.label.adaptive}" Margin="0,10,0,0"
+          <TextBlock Grid.Row="4" Grid.Column="0" Classes="label" Text="{DynamicResource main.label.adaptive}" Margin="0,10,0,0" IsVisible="{Binding GameMode}"
 />
           <ItemsControl Grid.Row="4" Grid.Column="1" Margin="0,10,0,0" HorizontalAlignment="Right" ClipToBounds="True"
-                        ItemsSource="{Binding AdaptiveTunnels}"
+                        ItemsSource="{Binding AdaptiveTunnels}" IsVisible="{Binding GameMode}"
                         ToolTip.Tip="{Binding AdaptiveTip}" Background="Transparent">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
@@ -185,7 +185,7 @@
             </ItemsControl.ItemTemplate>
           </ItemsControl>
 
-          <TextBlock Grid.Row="5" Grid.Column="0" Classes="label" Text="{DynamicResource main.label.game}" Margin="0,10,0,0" />
+          <TextBlock Grid.Row="5" Grid.Column="0" Classes="label" Text="{Binding ScopeLabel}" Margin="0,10,0,0" />
           <!-- A link to the list of supported games once there is one: the line itself only says how
                many, so that it stays one line however many games are added. -->
           <Button Grid.Row="5" Grid.Column="1" Classes="valuelink" Margin="0,10,0,0"
@@ -204,8 +204,8 @@
 
                It names the services rather than saying "on", because which ones are unblocked comes
                from the server now and this window is the only place that knows. -->
-          <TextBlock Grid.Row="7" Grid.Column="0" Classes="label" Text="{DynamicResource main.label.unblock}" Margin="0,10,0,0" />
-          <TextBlock Grid.Row="7" Grid.Column="1" Classes="value" Text="{Binding UnblockText}" Margin="0,10,0,0" ToolTip.Tip="{Binding UnblockTip}" />
+          <TextBlock Grid.Row="7" Grid.Column="0" Classes="label" Text="{DynamicResource main.label.unblock}" Margin="0,10,0,0" IsVisible="{Binding GameMode}" />
+          <TextBlock Grid.Row="7" Grid.Column="1" Classes="value" Text="{Binding UnblockText}" Margin="0,10,0,0" IsVisible="{Binding GameMode}" ToolTip.Tip="{Binding UnblockTip}" />
 
           <TextBlock Grid.Row="8" Grid.Column="0" Classes="label" Text="{DynamicResource main.label.packets}" Margin="0,10,0,0" />
           <TextBlock Grid.Row="8" Grid.Column="1" Classes="value" Text="{Binding PacketsText}" Margin="0,10,0,0" />
@@ -279,7 +279,7 @@
            says it is waiting for a game. -->
       <TextBlock Grid.Row="3" Grid.ColumnSpan="2"
                  IsVisible="{Binding ShowStartHint}"
-                 Text="{DynamicResource action.connect.hint}"
+                 Text="{Binding StartHint}"
                  HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap"
                  Foreground="#787878" FontSize="11"
                  Margin="0,6,0,0" />

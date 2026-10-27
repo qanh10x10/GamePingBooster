@@ -289,6 +289,21 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    private bool _fullTunnel;
+    public bool FullTunnel
+    {
+        get => _fullTunnel;
+        private set
+        {
+            if (!Set(ref _fullTunnel, value)) return;
+            foreach (var property in new[] { nameof(GameMode), nameof(StartHint), nameof(ScopeLabel), nameof(GameText), nameof(HasGames), nameof(GameTextBrush) })
+                Raise(property);
+        }
+    }
+    public bool GameMode => !FullTunnel;
+    public string StartHint => Loc.T(FullTunnel ? "fullTunnel.hint" : "action.connect.hint");
+    public string ScopeLabel => Loc.T(FullTunnel ? "fullTunnel.scope" : "main.label.game");
+
     public bool NeedsSetup => !Configured;
 
     /// <summary>
@@ -938,7 +953,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     /// to stay one short line however many games the profile grows to.
     /// </summary>
     /// <summary>Whether the Game line opens the supported games list: only when there is a list.</summary>
-    public bool HasGames => GameCount > 0;
+    public bool HasGames => !FullTunnel && GameCount > 0;
 
     private static readonly IBrush LinkBrush = new SolidColorBrush(Color.FromRgb(0x60, 0xA5, 0xFA));
     private static readonly IBrush ValueBrush = new SolidColorBrush(Color.FromRgb(0xab, 0xab, 0xab));
@@ -946,7 +961,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     /// <summary>Blue when the Game line can be clicked, the usual grey when it cannot.</summary>
     public IBrush GameTextBrush => HasGames ? LinkBrush : ValueBrush;
 
-    public string GameText => GameName is not null
+    public string GameText => FullTunnel ? Loc.T("fullTunnel.apps") : GameName is not null
         ? Loc.F(GameRunning ? "game.running" : "game.notOpen", GameName)
         : GameCount > 0 ? Loc.F("game.noneOpen", GameCount) : Loc.T("value.none");
 
@@ -1124,6 +1139,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
     /// </summary>
     private void OnLanguageChanged()
     {
+        Raise(nameof(StartHint));
+        Raise(nameof(ScopeLabel));
         if (LastStatus is { } status) ApplyServiceText(status);
         else if (_detailKey is { } key) Detail = Loc.T(key);
 
@@ -1259,6 +1276,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     /// <summary>Everything a status carries except the tunnel's state, its detail line and its error.</summary>
     private void ApplyDetails(StatusMessage status)
     {
+        FullTunnel = status.FullTunnel;
         PingMs = status.TunnelPingMs;
         GamePingMs = status.GamePingMs;
         GamePingDirect = status.GamePingDirect;
