@@ -9,8 +9,11 @@ namespace GamePingBooster.Core.Ipc;
 /// </summary>
 public static class IpcConstants
 {
-    /// <summary>Pipe name. The UI opens \\.\pipe\GamePingBooster.</summary>
-    public const string PipeName = "GamePingBooster";
+    /// <summary>Pipe name. The UI opens \\.\pipe\HollowPingBooster.</summary>
+    public const string PipeName = "HollowPingBooster";
+
+    /// <summary>Single-instance UI mutex name.</summary>
+    public const string MutexName = @"Local\HollowPingBooster.SingleInstance";
 
     /// <summary>Bump on contract changes so an old UI and a new service fail loudly instead of behaving oddly.</summary>
     public const int ProtocolVersion = 2;

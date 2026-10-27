@@ -91,7 +91,7 @@ $client = Join-Path $root 'client'
 $relayDir = Join-Path $root 'relay'
 $tools = Join-Path $root 'tools'
 $builder = Join-Path $tools 'profile-builder'
-$programData = Join-Path $env:ProgramData 'GamePingBooster'
+$programData = Join-Path $env:ProgramData 'HollowPingBooster'
 
 # Local settings, never committed: gpb.conf declares each relay's host, port, user and key or
 # password. The parser is shared with relay\deploy.ps1 rather than written twice, and follows the
@@ -242,18 +242,25 @@ function Stop-Everything {
     # restart after a failure, so a killed one came back a minute later - and, with the dev build holding the pipe
     # and port 53, died again, every minute, for as long as the dev build ran: 16 times in 15 minutes on 2026-09-30,
     # each start removing the dev build's NRPT rules. Stopped this way it stays stopped until started or rebooted.
-    $installed = Get-Service -Name 'GamePingBooster' -ErrorAction SilentlyContinue
+    # Isolated to HollowPingBooster to preserve vendor GamePingBooster service.
+    $installed = Get-Service -Name 'HollowPingBooster' -ErrorAction SilentlyContinue
     if ($installed -and $installed.Status -ne 'Stopped') {
         try {
-            Stop-Service -Name 'GamePingBooster' -Force -ErrorAction Stop
-            $stopped += 'the installed GamePingBooster service'
+            Stop-Service -Name 'HollowPingBooster' -Force -ErrorAction Stop
+            $stopped += 'the installed HollowPingBooster service'
         }
-        catch { $stubborn += 'the installed GamePingBooster service' }
+        catch { $stubborn += 'the installed HollowPingBooster service' }
     }
 
+    $ownedRoots = @((Join-Path $env:ProgramFiles 'Hollow Ping Booster'), $root) | ForEach-Object {
+        [IO.Path]::GetFullPath($_).TrimEnd('\') + '\'
+    }
     foreach ($name in 'GamePingBooster', 'gpb-service') {
         $procs = @(Get-Process -Name $name -ErrorAction SilentlyContinue)
         foreach ($p in $procs) {
+            # Fail closed when the path is inaccessible; only stop processes in our roots.
+            if (-not $p.Path) { continue }
+            if (-not ($ownedRoots | Where-Object { $p.Path.StartsWith($_, [System.StringComparison]::OrdinalIgnoreCase) })) { continue }
             try { Stop-Process -Id $p.Id -Force -ErrorAction Stop; $stopped += "$name($($p.Id))" }
             catch { $stubborn += "$name($($p.Id))" }
         }
@@ -386,10 +393,10 @@ function Invoke-Dev([string]$Version) {
 
     # Wait for the pipe rather than sleeping a guessed number of seconds.
     $deadline = (Get-Date).AddSeconds(20)
-    while ((Get-Date) -lt $deadline -and -not (Test-Path '\\.\pipe\GamePingBooster')) {
+    while ((Get-Date) -lt $deadline -and -not (Test-Path '\\.\pipe\HollowPingBooster')) {
         Start-Sleep -Milliseconds 300
     }
-    if (Test-Path '\\.\pipe\GamePingBooster') {
+    if (Test-Path '\\.\pipe\HollowPingBooster') {
         Say "Service is up, pipe listening" 'Green'
     } else {
         Warn "The pipe never appeared. Check the service window, or run: .\gpb.ps1 logs"
@@ -822,7 +829,7 @@ switch ($Verb.ToLowerInvariant()) {
     }
 
     'status' {
-        $pipe = New-Object System.IO.Pipes.NamedPipeClientStream('.', 'GamePingBooster', [System.IO.Pipes.PipeDirection]::InOut)
+        $pipe = New-Object System.IO.Pipes.NamedPipeClientStream('.', 'HollowPingBooster', [System.IO.Pipes.PipeDirection]::InOut)
         try { $pipe.Connect(3000) } catch { throw "Could not reach the service. Is it running? Try .\gpb.ps1 dev" }
         $reader = New-Object System.IO.StreamReader($pipe)
         $writer = New-Object System.IO.StreamWriter($pipe); $writer.AutoFlush = $true
@@ -942,7 +949,7 @@ switch ($Verb.ToLowerInvariant()) {
         Get-ChildItem $svcPub, $appPub -File | Where-Object { $_.Extension -ne '.pdb' } |
             ForEach-Object { Copy-Item $_.FullName $bin -Force }
         Say "Installed into $bin" 'Green'
-        Warn "If the service is registered, restart it (needs Administrator):  sc.exe stop GamePingBooster; sc.exe start GamePingBooster"
+        Warn "If the service is registered, restart it (needs Administrator):  sc.exe stop HollowPingBooster; sc.exe start HollowPingBooster"
     }
 
     'diag' {

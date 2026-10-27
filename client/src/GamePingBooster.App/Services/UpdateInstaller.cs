@@ -46,11 +46,11 @@ public static class UpdateInstaller
 
         // A folder of our own, emptied first: a half-finished download from last time is not
         // something to resume into a file that will be run as administrator.
-        var folder = Path.Combine(Path.GetTempPath(), "GamePingBooster-Update");
+        var folder = Path.Combine(Path.GetTempPath(), "HollowPingBooster-Update");
         try { Directory.Delete(folder, recursive: true); } catch (DirectoryNotFoundException) { }
         Directory.CreateDirectory(folder);
 
-        var finalPath = Path.Combine(folder, $"GamePingBooster-Setup-{update.Version}.exe");
+        var finalPath = Path.Combine(folder, $"HollowPingBooster-Setup-{update.Version}.exe");
         var partPath = finalPath + ".partial";
 
         // No overall timeout: a 17 MB file on a slow line can legitimately take minutes. A stall is

@@ -15,7 +15,7 @@ public static class QualityNotice
 
     private static string MarkerPath =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "GamePingBooster", "quality-notice-shown");
+            "HollowPingBooster", "quality-notice-shown");
 
     /// <summary>True the first time sharing is seen switched on for a signed-in installation; records that it was shown.</summary>
     public static bool ShouldShow(StatusMessage status)

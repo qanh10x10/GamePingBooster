@@ -32,9 +32,12 @@ Existing configurations with a licence server retain their game/profile behaviou
 automatically pointed at the self-host endpoint. New configurations still require the VPS PSK;
 no key is bundled. Do not edit the currently running installation to test this build.
 
-Display branding is Hollow Ping Booster. Internal assembly names, service name
-`GamePingBooster`, IPC pipe, driver/adapter identities, and ProgramData paths are
-retained for compatibility. Original MIT attribution is retained. Update checks
+Hollow Ping Booster is a separate installation: service/pipe `HollowPingBooster`,
+mutex `Local\HollowPingBooster.SingleInstance`, data folders `%ProgramData%\HollowPingBooster`
+and `%LOCALAPPDATA%\HollowPingBooster`, and adapter `Hollow Ping Booster`.
+Assembly/executable filenames remain unchanged, so identify processes by their exact path,
+not their image name. The Wintun driver is shared and is not removed by this fork's uninstaller.
+Original MIT attribution is retained. Update checks
 use `qanh10x10/GamePingBooster` and a separate cache; installer assets are named
 `HollowPingBooster-Setup-{version}.exe`.
 
@@ -97,9 +100,14 @@ dotnet run --project client/src/GamePingBooster.TunnelCheck -p:RollForward=Major
 ```
 
 UI and service were published separately as framework-dependent, non-AOT `win-x64` builds
-with `RollForward=Major`; this local bundle uses the installed .NET 10 runtime. Neither
-published executable was launched. A read-only before/after comparison confirmed the installed
-service process/registration, adapter DNS, NRPT and split-default route set were unchanged.
+with `RollForward=Major`; this local bundle uses the installed .NET 10 runtime. The original
+shared-identity bundle was build-only. After the owner authorized opening a separate app,
+the isolated build was installed under `C:\Program Files\Hollow Ping Booster` and started
+with its own LocalSystem service and UI. The dedicated pipe reported configured self-host
+full tunnel, relay `ping.hollow-agent.xyz:51820`, and state Disconnected. The exact UI window
+showed "All games and apps". No tunnel connection was initiated.
+A before/after comparison confirmed the vendor service PID/registration, executable/config
+hashes, adapter DNS, NRPT and split-default route set were unchanged.
 
 REA's retained managed-inspection records also establish that the installed
 service and UI have no CLI directory or CIL available:
@@ -109,19 +117,17 @@ service and UI have no CLI directory or CIL available:
 
 These records support the inspection boundary, not a claim of recovered code.
 
-## Test later; do not replace the running installation
+## Separate installation; only one tunnel connected
 
-At the owner's request, the local build is staged only: no UI launch, installer,
-service replacement/restart, route change, or saved-configuration change is part
-of this delivery. The original running installation is left alone.
-
-The UI and service deliberately retain the same service, pipe and single-instance
-identities. This is **not** a side-by-side installation: launching the new UI
-while another version's service is running would attach to that service and does
-not test the rebuilt service. Plan an explicit backed-up switch when ready.
+The vendor installation is preserved. The fork uses a distinct installer AppId, directory,
+service, pipe, UI mutex, config stores, adapter and DNS ownership prefixes. Its startup and
+unblock cleanup do not delete vendor NRPT rules. Development stop commands skip unknown paths
+and only target fork-owned directories. These identities permit both UIs/services to exist,
+not concurrent tunnel activation: routes, DNS policy and the driver remain machine-wide.
+Disconnect the old tunnel before connecting the new one.
 The example profiles are templates for legacy per-game mode, not verified game-server lists.
-They are not read or required by self-host full tunnel. Native routing/DNS/IPv6 integration and
-the published UI/service startup must be tested later during an explicit service switch.
+They are not read or required by self-host full tunnel. Published startup is verified;
+native routing/DNS/IPv6 connection and teardown remain untested on this machine.
 
 ## Local build
 
@@ -133,8 +139,9 @@ dotnet build client/GamePingBooster.sln -c Debug --nologo -v minimal -p:RollForw
 ```
 
 Publish the UI and service projects individually for deployment. Do not pass a
-solution-level RuntimeIdentifier. Before switching the installed service,
-back up the exact service registration and configuration, preserve the saved
-PSK and device identity, and retain a rollback to the original executable.
-Service replacement requires administrator approval. A newly launched UI
-connected to the vendor service does not verify the source service.
+solution-level RuntimeIdentifier. Register only `HollowPingBooster` with a quoted executable
+path under `C:\Program Files\Hollow Ping Booster`; never repoint the vendor service.
+Protect the separate configuration with SYSTEM/Administrators-only ACLs and provision the
+VPS PSK locally without copying vendor licence tokens or device identities. Administrator
+approval is required. The local validation service uses manual start; no native tunnel is
+activated merely by opening the UI.

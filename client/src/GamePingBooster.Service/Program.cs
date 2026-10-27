@@ -229,13 +229,14 @@ public static class Program
 
 internal sealed class BoosterService : ServiceBase
 {
+    public const string ExpectedServiceName = "HollowPingBooster";
     private readonly CancellationTokenSource _cts = new();
     private readonly FileLog _log = new();
     private Task? _worker;
 
     public BoosterService()
     {
-        ServiceName = "GamePingBooster";
+        ServiceName = ExpectedServiceName;
         CanStop = true;
         CanShutdown = true;
     }

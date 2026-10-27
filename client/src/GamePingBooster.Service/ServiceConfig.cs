@@ -95,7 +95,7 @@ public sealed class ServiceConfig
     [JsonPropertyName("lastGameId")] public string? LastGameId { get; set; }
 
     /// <summary>Virtual adapter name as shown in Network Connections.</summary>
-    [JsonPropertyName("adapterName")] public string AdapterName { get; set; } = "Game Ping Booster";
+    [JsonPropertyName("adapterName")] public string AdapterName { get; set; } = "Hollow Ping Booster";
 
     /// <summary>
     /// true = install routes immediately on connect without waiting for the game. Debug only -
@@ -233,7 +233,7 @@ public sealed class ServiceConfig
     public bool? RescanBetweenMatches { get; set; }
 
     public static string DefaultDirectory =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "GamePingBooster");
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "HollowPingBooster");
 
     private static string FilePath => Path.Combine(DefaultDirectory, "config.json");
 

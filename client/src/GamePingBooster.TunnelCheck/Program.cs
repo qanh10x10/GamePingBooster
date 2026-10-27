@@ -27,16 +27,24 @@ internal static partial class Program
     private static int Main(string[] args)
     {
         if (args.Length > 0 && args[0] == "full") return AllScenarios(fullOnly: true);
+        if (args.Length > 0 && args[0] == "identity") return IdentityMain();
         if (args.Length > 0 && args[0] == "rig") return RigMain(args[1..]);
         if (args.Length > 0 && args[0] == "service") return ServiceMain(args[1..]);
         if (args.Length > 0 && args[0] == "unblock") return UnblockMain(args[1..]);
         return AllScenarios();
     }
 
+    private static int IdentityMain()
+    {
+        RunSideBySideIdentityScenarios().GetAwaiter().GetResult();
+        return _failures == 0 ? 0 : 1;
+    }
+
     private static int AllScenarios(bool fullOnly = false)
     {
         var scenarios = new (string Title, Func<Task> Run)[]
         {
+            ("Full tunnel and side-by-side fork identity isolation", RunSideBySideIdentityScenarios),
             ("Full tunnel network rollback (fake boundaries)", RunFullTunnelNetworkScenarios),
             ("Full tunnel engine policy (no native network)", RunFullTunnelEngineScenarios),
             ("Full tunnel packet transport", FullTunnelCarriesNonGameTraffic),

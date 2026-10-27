@@ -95,14 +95,14 @@ wrong cause:
 - **Stops the service and the UI first.** The service holds `wintun.dll` and the UI holds
   `Core.dll`; a build that cannot overwrite them fails with a locked-file error that does not
   mention either.
-- **Copies the result into `%ProgramData%\GamePingBooster\bin`**, skipping `.pdb` files.
+- **Copies the result into `%ProgramData%\HollowPingBooster\bin`**, skipping `.pdb` files.
 
 A registered service keeps running the old binary until it is restarted, which needs
 Administrator:
 
 ```
-sc.exe stop GamePingBooster
-sc.exe start GamePingBooster
+sc.exe stop HollowPingBooster
+sc.exe start HollowPingBooster
 ```
 
 ## Commands
@@ -192,10 +192,10 @@ meaning on another system and say so instead of failing oddly.
 | Command | What it does |
 |---|---|
 | `./gpb dev` | The everyday loop: stop what is running, build, start the service as LocalSystem via `psexec`, start the UI. |
-| `./gpb publish` | Native AOT Release build, installed into `%ProgramData%\GamePingBooster\bin`. See [Build](#build). |
+| `./gpb publish` | Native AOT Release build, installed into `%ProgramData%\HollowPingBooster\bin`. See [Build](#build). |
 | `./gpb stop` | Stops the service and the UI. |
 | `./gpb status` | Asks the running service for its live counters over the named pipe: state, packets, drops, tunnel ping, loss, active routes. |
-| `./gpb logs` | Follows the service log in `%ProgramData%\GamePingBooster\logs`. |
+| `./gpb logs` | Follows the service log in `%ProgramData%\HollowPingBooster\logs`. |
 | `./gpb check` | **Run this during a match.** Answers whether the game's traffic is really going through the relay or straight out of the network card. Outside a match it has nothing to look at. |
 | `./gpb lag [seconds]` | **Run this while it is lagging.** Pings every segment of the path on the same tick - your router, the ISP's access network, its domestic core, the relay, and a landmark on a different network in the same region - then names the one segment that is at fault. Reads the tunnel's own numbers from the service rather than opening a session of its own, so it is safe to run mid-match. Needs no Administrator. Each run writes a full report - trace, verdict and every raw sample - under `%LOCALAPPDATA%\GamePingBooster\lag-reports`, plus a one-line history entry that becomes the baseline later runs are judged against. |
 | `./gpb capture [udp\|tcp\|all]` | Waits for the game to start, captures its traffic, and appends the server addresses it sees to `observed.txt`. Safe to Ctrl+C. `udp` is the default and the only half that feeds the profile. `tcp` is for a lobby stuck on "Initializing...": it lists every TCP destination the game tried, marks the ones whose SYNs were never answered as **BLOCKED**, and writes that to `tcp-sessions.txt` - never to `observed.txt`. `all` does both. Close downloads while capturing TCP; they fill the capture. |

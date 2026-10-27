@@ -23,7 +23,7 @@ internal static class DriverSetup
     /// A name no real adapter would have, so a leftover from a failed run is recognisable and
     /// can never be confused with the working adapter.
     /// </summary>
-    private const string TempAdapterName = "GamePingBooster Setup";
+    internal const string TempAdapterName = "HollowPingBooster Setup";
 
     /// <summary>
     /// Forces the driver to be installed now, by creating one adapter and immediately closing
@@ -40,7 +40,7 @@ internal static class DriverSetup
         nint handle;
         try
         {
-            handle = WintunInterop.WintunCreateAdapter(TempAdapterName, "GamePingBooster", nint.Zero);
+            handle = WintunInterop.WintunCreateAdapter(TempAdapterName, "HollowPingBooster", nint.Zero);
         }
         catch (DllNotFoundException)
         {

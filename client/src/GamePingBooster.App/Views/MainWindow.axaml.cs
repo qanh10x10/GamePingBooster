@@ -147,7 +147,7 @@ public partial class MainWindow : SurfaceWindow
     {
         var path = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-            "GamePingBooster", "logs");
+            "HollowPingBooster", "logs");
         try
         {
             Directory.CreateDirectory(path);

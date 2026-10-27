@@ -21,7 +21,7 @@ public static class CloseChoiceStore
 {
     private static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "GamePingBooster", "close-action");
+        "HollowPingBooster", "close-action");
 
     public static CloseAction Load()
     {

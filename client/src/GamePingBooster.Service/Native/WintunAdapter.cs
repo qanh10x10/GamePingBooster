@@ -44,11 +44,13 @@ internal sealed class WintunAdapter : IPacketDevice, IDisposable
     /// </summary>
     private static readonly int[] CreateRetryDelaysMs = [250, 500, 750, 1000, 1000];
 
+    internal const string DefaultTunnelType = "HollowPingBooster";
+
     /// <summary>
     /// Creates a new adapter (or reuses one of the same name left over from a previous run).
     /// Throws <see cref="Win32Exception"/> if the process is not running as LocalSystem.
     /// </summary>
-    public static WintunAdapter Create(string name, string tunnelType = "GamePingBooster",
+    public static WintunAdapter Create(string name, string tunnelType = DefaultTunnelType,
         Action<string>? log = null)
     {
         var handle = nint.Zero;

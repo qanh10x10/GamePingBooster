@@ -55,7 +55,7 @@ namespace GamePingBooster.Service.Discovery;
 /// </summary>
 internal sealed class GameDestinationRecorder : IDisposable
 {
-    private const string SessionName = "GamePingBooster-Discovery";
+    internal const string SessionName = "HollowPingBooster-Discovery";
 
     /// <summary>
     /// Packets to one address within <see cref="Window"/> that make it a server, for a game whose profile

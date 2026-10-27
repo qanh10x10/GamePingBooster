@@ -42,7 +42,7 @@
   #define AppVersionNumeric "0.0.0"
 #endif
 #define AppPublisher   "Hollow Ping Booster"
-#define ServiceName    "GamePingBooster"
+#define ServiceName    "HollowPingBooster"
 #define ServiceExe     "gpb-service.exe"
 #define UiExe          "GamePingBooster.exe"
 
@@ -52,7 +52,7 @@
 #define AppPublish     Root + "\client\src\GamePingBooster.App\bin\Release\net9.0-windows\win-x64\publish"
 
 [Setup]
-AppId={{6E7A4C21-8D3F-4B62-9E15-2C4A7F9D0B83}
+AppId={{D7E84B1A-56E2-4C3D-8A7B-9E10F23C5E47}
 AppName={#AppName}
 AppVersion={#AppVersion}
 ; So the setup .exe itself reports a version in its file properties. Without it a folder of
@@ -61,8 +61,8 @@ VersionInfoVersion={#AppVersionNumeric}
 VersionInfoProductVersion={#AppVersionNumeric}
 VersionInfoProductTextVersion={#AppVersion}
 AppPublisher={#AppPublisher}
-; Keep the existing install/data/service identities so an upgrade preserves configuration.
-DefaultDirName={autopf}\Game Ping Booster
+; Side-by-side identity: distinct directory to preserve installed vendor Game Ping Booster.
+DefaultDirName={autopf}\Hollow Ping Booster
 DefaultGroupName={#AppName}
 UninstallDisplayIcon={app}\{#UiExe}
 OutputDir={#Root}\installer\dist
@@ -123,8 +123,8 @@ Source: "{#Root}\profiles\valorant-vn.json"; DestDir: "{app}\profiles"; Flags: i
 ; opened, while the folder the service actually uses was created at run time by whichever code
 ; path got there first. Nothing broke, which is why it survived; it just meant the installer was
 ; not doing the one thing this section is here for.
-Name: "{commonappdata}\GamePingBooster"
-Name: "{commonappdata}\GamePingBooster\logs"
+Name: "{commonappdata}\HollowPingBooster"
+Name: "{commonappdata}\HollowPingBooster\logs"
 
 [Icons]
 Name: "{group}\{#AppName}";            Filename: "{app}\{#UiExe}"
@@ -188,10 +188,8 @@ Filename: "{sys}\netsh.exe"; \
 Filename: "{sys}\sc.exe"; Parameters: "stop {#ServiceName}"; \
   Flags: runhidden waituntilterminated; RunOnceId: "StopService"
 
-; Before the service binary is deleted, and before the service itself is removed: this needs the
-; executable that is about to go away.
-Filename: "{app}\{#ServiceExe}"; Parameters: "--remove-driver"; \
-  Flags: runhidden waituntilterminated skipifdoesntexist; RunOnceId: "RemoveDriver"
+; ponytail: Wintun is machine-wide and shared with the preserved vendor app; leave its
+; driver installed. Driver removal requires a separate check that no other app uses it.
 
 Filename: "{sys}\sc.exe"; Parameters: "delete {#ServiceName}"; \
   Flags: runhidden waituntilterminated; RunOnceId: "DeleteService"
@@ -239,6 +237,22 @@ begin
   end;
 end;
 
+// Stops ONLY the UI instance running out of this app's directory ({app}).
+// Never blind taskkill by executable name, which would kill the installed vendor GamePingBooster UI.
+procedure StopAppInstance();
+var
+  code: Integer;
+  cmd: String;
+begin
+  cmd := '-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "' +
+         '$appPath = [System.IO.Path]::GetFullPath(''' + ExpandConstant('{app}\{#UiExe}') + '''); ' +
+         'Get-Process -Name ''GamePingBooster'' -ErrorAction SilentlyContinue | ' +
+         'Where-Object { $_.Path -and $_.Path.Equals($appPath, [System.StringComparison]::OrdinalIgnoreCase) } | ' +
+         'Stop-Process -Force"';
+  Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'), cmd, '',
+       SW_HIDE, ewWaitUntilTerminated, code);
+end;
+
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   code, waited: Integer;
@@ -247,9 +261,8 @@ begin
   NeedsRestart := False;
 
   // The UI holds its own files open, and it is an ordinary user process, so this is allowed to
-  // fail quietly - it may simply not be running.
-  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM {#UiExe}', '',
-       SW_HIDE, ewWaitUntilTerminated, code);
+  // fail quietly - it may simply not be running. Scoped strictly to {app} to preserve vendor UI.
+  StopAppInstance();
 
   StopServiceAndWait();
 
@@ -284,8 +297,7 @@ var
 begin
   if CurUninstallStep = usUninstall then
   begin
-    Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM {#UiExe}', '',
-         SW_HIDE, ewWaitUntilTerminated, code);
+    StopAppInstance();
     StopServiceAndWait();
   end;
 end;

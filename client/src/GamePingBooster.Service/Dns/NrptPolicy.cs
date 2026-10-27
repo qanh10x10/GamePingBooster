@@ -36,18 +36,16 @@ internal static class NrptPolicy
     /// The rule name prefix. Fixed and recognisable on purpose: somebody reading this key on a
     /// player's machine at two in the morning should be able to tell at a glance who put it there.
     /// </summary>
-    private const string RulePrefix = "GamePingBooster-Unblock-";
+    internal const string RulePrefix = "HollowPingBooster-Unblock-";
 
     /// <summary>
-    /// Prefixes this service used to write, removed as well as the current one.
-    ///
-    /// Not tidiness. A rule left over from an earlier build points the names it claims at a
-    /// resolver that is not listening, which breaks those sites in a way that survives a reboot and
-    /// has no visible cause - and the rename from Steam-specific to general happened after the
-    /// feature had already run on a real machine. Anything ever written must stay removable,
-    /// whatever it was called at the time.
+    /// Prefixes this service manages. Isolated to HollowPingBooster only so vendor rules
+    /// (GamePingBooster-Unblock- and GamePingBooster-Steam-) are NEVER cleaned or disturbed.
     /// </summary>
-    private static readonly string[] AllPrefixes = [RulePrefix, "GamePingBooster-Steam-"];
+    internal static readonly string[] AllPrefixes = [RulePrefix];
+
+    public static bool IsOwnedRule(string ruleName) =>
+        AllPrefixes.Any(p => ruleName.StartsWith(p, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>DNS_POLICY_CONFIG version. 1 is what Windows writes and what it reads.</summary>
     private const int Version = 1;
@@ -165,7 +163,7 @@ internal static class NrptPolicy
     /// rollback path of a failed enable, and neither can afford to fail.
     /// </summary>
     public static int Remove(Action<string> log) =>
-        RemoveWhere(log, name => AllPrefixes.Any(p => name.StartsWith(p, StringComparison.OrdinalIgnoreCase)));
+        RemoveWhere(log, IsOwnedRule);
 
     private static int RemoveWhere(Action<string> log, Func<string, bool> matches)
     {
@@ -218,7 +216,7 @@ internal static class NrptPolicy
             if (policy is null) return 0;
 
             return policy.GetSubKeyNames()
-                .Count(n => AllPrefixes.Any(p => n.StartsWith(p, StringComparison.OrdinalIgnoreCase)));
+                .Count(IsOwnedRule);
         }
         catch (Exception)
         {

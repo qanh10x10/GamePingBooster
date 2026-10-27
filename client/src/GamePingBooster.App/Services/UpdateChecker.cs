@@ -272,7 +272,7 @@ public sealed class UpdateChecker : IAsyncDisposable
 
     /// <summary>Where the last answer from GitHub is kept, per Windows user.</summary>
     internal static string CachePath =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GamePingBooster", "hollow-update-check.json");
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HollowPingBooster", "hollow-update-check.json");
 
     private static UpdateCache? ReadCache()
     {

@@ -32,7 +32,7 @@ public static class RefreshTokenStore
 
     private static string Directory =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "GamePingBooster");
+            "HollowPingBooster");
 
     private static string FilePath => Path.Combine(Directory, FileName);
 

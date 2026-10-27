@@ -25,7 +25,7 @@ internal static class Program
     /// The service is machine-wide and stays that way. It is not affected by any of this; the
     /// pipe it serves accepts one client at a time regardless.
     /// </summary>
-    private const string InstanceMutexName = @"Local\GamePingBooster.SingleInstance";
+    private const string InstanceMutexName = GamePingBooster.Core.Ipc.IpcConstants.MutexName;
 
     // No async Main: Avalonia must own the main thread.
     [STAThread]
