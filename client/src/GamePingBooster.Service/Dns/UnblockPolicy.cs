@@ -18,11 +18,10 @@ internal sealed record UnblockApp(
     /// Whether <paramref name="name"/> is in the profile's tunnel list: claimed, and under one of its tunnel names.
     /// See ProfileUnblock.Tunnel.
     ///
-    /// Since 0.3.8 the list says "may go through the tunnel when the line cuts it", not "always": the resolver tries
-    /// the line first and sends a listed name through the tunnel only once the line is seen cutting it
-    /// (<see cref="MayTunnelWhenCut"/>). Builds before that route every listed name whenever they are connected, on
-    /// every line - so prod-live-images, listed for FPT in Ho Chi Minh City, rode the relay for Viettel and VNPT
-    /// players too, sharing the 256 KB/s session cap with their matches.
+    /// A listed name goes through the tunnel whenever one is up, on every line. 0.3.8 alone tried the line first for
+    /// these too, and that broke PUBG's lobby on FPT in Ha Noi (2026-10-03) - see LocalResolver.AnswerAsync. Which
+    /// is why the list must hold small names only: prod-live-images, listed for FPT in Ho Chi Minh City on 2026-10-02,
+    /// rode the relay for Viettel and VNPT players too until it was taken off.
     /// </summary>
     public bool RoutesThroughTunnel(string name) =>
         Claims(name) && (Tunnel ?? []).Any(suffix => Matches(name, suffix));

@@ -1,3 +1,6 @@
+using System.Net;
+using System.Net.Sockets;
+
 namespace GamePingBooster.Core.Profiles;
 
 /// <summary>
@@ -126,4 +129,111 @@ public static class RelayPaths
     /// </summary>
     public static bool WorthTryingEntries(double directMs, double bestEndToEndMs) =>
         bestEndToEndMs > directMs - HelpMargin(directMs);
+
+    /// <summary>
+    /// Parses and validates a relay endpoint in "host:port", "ipv4:port", or "[ipv6]:port" form.
+    /// Returns null on success, or a human-readable error describing why the endpoint is invalid.
+    /// </summary>
+    public static string? ValidateEndpoint(string endpoint, out string host, out int port)
+    {
+        host = string.Empty;
+        port = 0;
+        if (string.IsNullOrWhiteSpace(endpoint))
+            return "Endpoint cannot be empty.";
+
+        endpoint = endpoint.Trim();
+
+        if (endpoint.StartsWith('['))
+        {
+            var closing = endpoint.IndexOf(']');
+            if (closing <= 1 || closing >= endpoint.Length - 2 || endpoint[closing + 1] != ':')
+            {
+                return $"\"{endpoint}\" needs a port, for example 203.0.113.10:51820";
+            }
+            if (!int.TryParse(endpoint[(closing + 2)..], out port) || port < 1 || port > 65535)
+            {
+                return $"\"{endpoint}\" does not end in a port between 1 and 65535.";
+            }
+            var ipPart = endpoint[1..closing];
+            if (!IPAddress.TryParse(ipPart, out var ip6) || ip6.AddressFamily != AddressFamily.InterNetworkV6)
+            {
+                return $"\"{endpoint}\" does not contain a valid host name or IP address.";
+            }
+            host = ipPart;
+            return null;
+        }
+
+        var colon = endpoint.LastIndexOf(':');
+        if (colon <= 0 || colon == endpoint.Length - 1)
+        {
+            return $"\"{endpoint}\" needs a port, for example 203.0.113.10:51820";
+        }
+
+        if (!int.TryParse(endpoint[(colon + 1)..], out port) || port < 1 || port > 65535)
+        {
+            return $"\"{endpoint}\" does not end in a port between 1 and 65535.";
+        }
+
+        host = endpoint[..colon];
+
+        if (host.Contains(':'))
+        {
+            return $"\"{endpoint}\" does not contain a valid host name or IP address.";
+        }
+
+        var hostType = Uri.CheckHostName(host);
+        if (hostType is not (UriHostNameType.Dns or UriHostNameType.IPv4))
+        {
+            return $"\"{endpoint}\" does not contain a valid host name or IP address.";
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Resolves a configured relay endpoint into numeric "ip:port" form. Literal IP endpoints
+    /// are returned as-is without network lookup. Hostnames are resolved to an IPv4 (AF_INET)
+    /// address with a bounded timeout.
+    /// </summary>
+    public static async Task<string> ResolveEndpointAsync(
+        string endpoint,
+        CancellationToken ct = default,
+        TimeSpan? timeout = null)
+    {
+        var err = ValidateEndpoint(endpoint, out var host, out var port);
+        if (err is not null)
+            throw new FormatException(err);
+
+        // Literal IP addresses bypass DNS entirely
+        if (IPAddress.TryParse(host, out var ip))
+        {
+            return ip.AddressFamily == AddressFamily.InterNetworkV6
+                ? $"[{ip}]:{port}"
+                : $"{ip}:{port}";
+        }
+
+        // Bounded cancellable DNS lookup for IPv4 (AF_INET)
+        using var timeoutCts = new CancellationTokenSource(timeout ?? TimeSpan.FromSeconds(5));
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
+
+        IPAddress[] addresses;
+        try
+        {
+            addresses = await Dns.GetHostAddressesAsync(host, AddressFamily.InterNetwork, linkedCts.Token)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !ct.IsCancellationRequested)
+        {
+            throw new TimeoutException($"DNS resolution for relay host '{host}' timed out.");
+        }
+
+        // ponytail: picks first resolved IPv4 address; add Happy Eyeballs/multi-IP racing if multi-homed VPS relays are supported.
+        var ipv4 = addresses.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork);
+        if (ipv4 is null)
+        {
+            throw new InvalidOperationException($"No IPv4 address found for relay host '{host}'.");
+        }
+
+        return $"{ipv4}:{port}";
+    }
 }

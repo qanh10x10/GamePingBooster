@@ -1,4 +1,8 @@
-# Game Ping Booster
+# Hollow Ping Booster
+
+Self-host fork of Game Ping Booster. Windows settings: relay `ping.hollow-agent.xyz:51820`,
+existing VPS pre-shared key, and **empty Licence server**. See [self-host setup and verification](docs/HOLLOW-SELFHOST.md).
+The public source base is 0.3.9; this fork does not claim source parity with the closed 0.5.7 release.
 
 Latency reducer for PUBG on Windows, aimed at players in Vietnam. Gameplay traffic is diverted
 through a VPS abroad whose route to the game servers beats the one the local ISP picks by default.

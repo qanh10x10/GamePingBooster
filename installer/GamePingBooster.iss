@@ -21,7 +21,7 @@
 ;   4. Remove the service on uninstall. A leftover service that points at deleted files sits in
 ;      the machine forever and cannot be removed from the UI.
 
-#define AppName        "Game Ping Booster"
+#define AppName        "Hollow Ping Booster"
 
 ; The version comes from ..\VERSION, the one place the whole product agrees on it, and
 ; `gpb.ps1 installer` passes it in with /DAppVersion. This used to be a hand-written "0.1.0"
@@ -41,7 +41,7 @@
 #ifndef AppVersionNumeric
   #define AppVersionNumeric "0.0.0"
 #endif
-#define AppPublisher   "Game Ping Booster"
+#define AppPublisher   "Hollow Ping Booster"
 #define ServiceName    "GamePingBooster"
 #define ServiceExe     "gpb-service.exe"
 #define UiExe          "GamePingBooster.exe"
@@ -61,11 +61,12 @@ VersionInfoVersion={#AppVersionNumeric}
 VersionInfoProductVersion={#AppVersionNumeric}
 VersionInfoProductTextVersion={#AppVersion}
 AppPublisher={#AppPublisher}
-DefaultDirName={autopf}\{#AppName}
+; Keep the existing install/data/service identities so an upgrade preserves configuration.
+DefaultDirName={autopf}\Game Ping Booster
 DefaultGroupName={#AppName}
 UninstallDisplayIcon={app}\{#UiExe}
 OutputDir={#Root}\installer\dist
-OutputBaseFilename=GamePingBooster-Setup-{#AppVersion}
+OutputBaseFilename=HollowPingBooster-Setup-{#AppVersion}
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern

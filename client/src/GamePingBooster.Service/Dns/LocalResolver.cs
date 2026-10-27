@@ -276,7 +276,7 @@ internal sealed class LocalResolver : IAsyncDisposable
     /// classify something is not a reason to break it, and the ISP's resolver understands forms
     /// this code does not.
     /// </summary>
-    private async Task<byte[]> AnswerAsync(byte[] query, CancellationToken ct)
+    internal async Task<byte[]> AnswerAsync(byte[] query, CancellationToken ct)
     {
         var id = DnsWire.ReadId(query);
 
@@ -286,15 +286,20 @@ internal sealed class LocalResolver : IAsyncDisposable
             // the HTTPS records browsers now ask for, anything invented later - is relayed as it
             // arrives, because the check has nothing to say about them and synthesising an answer
             // would mean dropping whatever the upstream knew that this code does not.
-            // Through the tunnel only where the line cuts the name: FPT resets some of these names whatever the
-            // address (2026-10-02), so an honest answer alone would not connect - but Viettel and VNPT let the same
-            // names through, and sending them over the relay there only spent the session's 256 KB/s. The line first,
-            // then, the profile's tunnel list included; the tunnel once the line is seen cutting the name, and
-            // straight to it for a while after. Without a tunnel, the name is answered exactly as before.
+            // The profile's tunnel list goes through the tunnel whenever one is up, on every line - as before 0.3.8.
+            // 0.3.8 tried the line first for listed names too, and on FPT in Ha Noi (2026-10-03) that was a black screen:
+            // some of prod-live-front's edges passed this resolver's test handshake, so the lobby went direct, and the
+            // lobby itself (Coherent, a Chromium) then hung on that same direct path. Pinned to one of those edges it
+            // still hung; the same edge routed into the tunnel loaded at once. A test handshake is not the game's
+            // connection, so for the names somebody listed on purpose it is not asked. The list holds small fronts and
+            // APIs only - the lobby page is 1.3 MB, cached a day.
+            //
+            // Unlisted names still try the line first, and go through the tunnel once the line is seen cutting them.
+            // Without a tunnel, every name is answered exactly as before.
             if (type == DnsWire.TypeA && _memory is { } seen && seen.Seen.Count < MaxSeen) seen.Seen.TryAdd(name, 0);
 
             var tunnelReady = type == DnsWire.TypeA && _routes is { Ready: true } && _tunnelEdges is not null;
-            var viaTunnel = tunnelReady && TunnelledForCut(name);
+            var viaTunnel = tunnelReady && (app.RoutesThroughTunnel(name) || TunnelledForCut(name));
 
             if (type == DnsWire.TypeA)
             {

@@ -40,8 +40,8 @@
     <AssemblyVersion>$(GpbNumericVersion).0</AssemblyVersion>
     <FileVersion>$(GpbNumericVersion).0</FileVersion>
 
-    <Product>Game Ping Booster</Product>
-    <Company>Game Ping Booster</Company>
+    <Product>Hollow Ping Booster</Product>
+    <Company>Hollow Ping Booster</Company>
   </PropertyGroup>
 
 </Project>
