@@ -127,6 +127,7 @@ public static class Program
         // those sites in a way that survives a reboot and has no visible cause. The only place that
         // is guaranteed to run after a crash is the next start, so it is cleaned up here.
         UnblockDns.RemoveLeftovers(log);
+        Network.FullTunnelNetwork.CleanupStale(log);
 
         // The policy is read through the engine because that is where the delivered profile lands,
         // and read on every attempt rather than captured once: the profile arrives after startup,
@@ -152,7 +153,11 @@ public static class Program
         // On at Connected; off at Disconnected (Disconnect, or the app closing) and Faulted (gave up). Connecting and
         // Reconnecting change nothing, so a failover or a move between relays mid-match does not take the fix away.
         // The cost, accepted: reading the Steam store needs Connect now (it did not from 2026-09-22).
-        if (!(config.UnblockEnabled ?? true))
+        if (config.FullTunnelEnabled)
+        {
+            log("Full tunnel owns DNS while connected; the separate name-unblocking proxy stays off.");
+        }
+        else if (!(config.UnblockEnabled ?? true))
         {
             log("Name unblocking is switched off in config.json.");
         }

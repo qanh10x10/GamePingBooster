@@ -44,7 +44,9 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
     /// profile the list arrives in.
     /// </summary>
     public UnblockPolicy UnblockPolicy =>
-        UnblockPolicy.FromProfile(_profile, _log, allowBuiltin: string.IsNullOrWhiteSpace(_config.LicenceUrl));
+        ActiveFullTunnel
+            ? UnblockPolicy.Empty
+            : UnblockPolicy.FromProfile(_profile, _log, allowBuiltin: string.IsNullOrWhiteSpace(_config.LicenceUrl));
     private WintunAdapter? _adapter;
     private TunnelClient? _tunnel;
 
@@ -87,7 +89,7 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
     /// on screen said the region had only been guessed.
     /// </summary>
     private volatile string? _matchServerRegion;
-    private readonly ulong _clientId = ClientIdentity.Load();
+    private readonly ulong _clientId;
 
     /// <summary>
     /// This machine's P-256 keypair. Loaded here rather than where it is used, because it must
@@ -132,6 +134,7 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
     {
         _config = config;
         _log = log;
+        _clientId = ClientIdentity.Load();
         _device = DeviceIdentity.LoadOrCreate(log);
         _token = TokenStore.Load(log);
         QualityOutbox.Enabled = config.ShareQuality;
@@ -488,6 +491,41 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
 
     public async Task LoadProfileAsync(CancellationToken ct)
     {
+        if (ActiveFullTunnel)
+        {
+            if (_config.RelayEndpoints.Count == 0)
+            {
+                throw new InvalidOperationException("Full tunnel requires at least one self-hosted relay endpoint.");
+            }
+
+            var synthGame = new GameEntry
+            {
+                Id = "full-tunnel",
+                Name = "Full tunnel",
+                ProcessNames = [],
+                Regions = [],
+                LobbyAddresses = []
+            };
+
+            _profile = new ProfileBundle
+            {
+                Games = [synthGame],
+                Relays = [],
+                Unblock = []
+            };
+            _profileSource = "full-tunnel";
+            _profileHashes = [];
+
+            await ApplySelfHostedRelayAsync(ct).ConfigureAwait(false);
+            if (_profile.Relays.Count == 0)
+            {
+                throw new InvalidOperationException("Full tunnel failed to resolve any relay endpoints.");
+            }
+
+            _log($"Loaded full tunnel profile ({synthGame.Name}) with {_profile.Relays.Count} relay(s)");
+            return;
+        }
+
         // "Licensed" is having a licence server, full stop. There is no separate profile
         // address to configure: the endpoints all hang off the one URL somebody typed, and
         // asking for a second address for the same server was needless.
@@ -625,6 +663,7 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
     {
         if (_state is TunnelState.Connected or TunnelState.Connecting) return;
 
+        _isFullTunnel = _config.FullTunnelEnabled;
         _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var token = _cts.Token;
         _error = null;
@@ -687,6 +726,10 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
             ResetThroughputBaseline();
             _choiceAtConnect = RelayChoice;
             var preferred = string.IsNullOrWhiteSpace(relayId) ? RelayChoice : relayId;
+            if (_isFullTunnel && preferred is not null && !_profile!.Relays.Any(r => r.Id.Equals(preferred, StringComparison.OrdinalIgnoreCase)))
+            {
+                preferred = null;
+            }
             _chosenByHandAtConnect = preferred;
             (_relay, _tunnel) = await SelectRelayAsync(preferred, psk, token).ConfigureAwait(false);
             var endpoint = ParseEndpoint(_relay.Endpoint);
@@ -700,41 +743,73 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
             // Pin the relay to the physical adapter BEFORE installing any route into the tunnel.
             _routes = new RouteManager(_log);
             _routes.PinRelayRoute(endpoint.Address);
-            PinDoors();
+            if (_isFullTunnel)
+            {
+                var otherRelayIps = _profile!.Relays
+                    .Select(r => ParseEndpoint(r.Endpoint).Address)
+                    .Where(ip => !ip.Equals(endpoint.Address))
+                    .Distinct()
+                    .ToList();
+                if (otherRelayIps.Count > 0)
+                {
+                    _routes.PinDoorRoutes(otherRelayIps);
+                }
+            }
+            else
+            {
+                PinDoors();
+            }
 
             _routes.ConfigureAdapter(_adapter.InterfaceIndex, session.ClientIp, prefixLength: 24, session.Mtu);
             StartTunnel(_tunnel, token);
 
-            // The lobby goes on the tunnel NOW, before the game exists, rather than with the game
-            // routes below. See GameEntry.LobbyAddresses: the lobby is a TCP connection the game
-            // opens in its first seconds, and one caught by a route after it opened is dropped by
-            // the relay for carrying the wrong source address - a late lobby route hangs the lobby.
-            InstallLobbyRoutes();
-            ForgetUnblockRoutes();
-            phases.Mark("routing");
-
-            // Watch EVERY game in the profile, so routes come and go with whichever one is opened.
-            _watcher = new GameProcessWatcher(_profile!.Games.SelectMany(g => g.ProcessNames));
-            _watcher.GameStateChanged += OnGameStateChanged;
-            _watcher.Start();
-
-            if (_config.RouteWithoutGame)
+            if (_isFullTunnel)
             {
-                _log("routeWithoutGame = true - installing routes now without waiting for the game (debug mode).");
-                InstallRoutes();
+                _routes.InstallGameRoutes(_adapter.InterfaceIndex, FullTunnelRoutes);
+                _fullTunnelNetwork = new FullTunnelNetwork(_log);
+                _fullTunnelNetwork.Install(_adapter.InterfaceIndex);
+                phases.Mark("routing");
+
+                StartSupervisor(token);
+                phases.Mark("start");
+                _log($"Connect took {phases}.");
+
+                SetState(TunnelState.Connected,
+                    new StatusText("svc.fullTunnelConnected", $"Full tunnel through {_relay.Name} - all games and apps", _relay.Name));
             }
+            else
+            {
+                // The lobby goes on the tunnel NOW, before the game exists, rather than with the game
+                // routes below. See GameEntry.LobbyAddresses: the lobby is a TCP connection the game
+                // opens in its first seconds, and one caught by a route after it opened is dropped by
+                // the relay for carrying the wrong source address - a late lobby route hangs the lobby.
+                InstallLobbyRoutes();
+                ForgetUnblockRoutes();
+                phases.Mark("routing");
 
-            StartSupervisor(token);
-            StartGamePingProbe(token);
-            StartSpikeRecorder(token);
-            phases.Mark("start");
-            _log($"Connect took {phases}.");
+                // Watch EVERY game in the profile, so routes come and go with whichever one is opened.
+                _watcher = new GameProcessWatcher(_profile!.Games.SelectMany(g => g.ProcessNames));
+                _watcher.GameStateChanged += OnGameStateChanged;
+                _watcher.Start();
 
-            SetState(TunnelState.Connected,
-                _watcher.IsGameRunning
-                    ? new StatusText("svc.connectedAccelerating",
-                        $"Connected to {_relay.Name} - accelerating {_game.Name}", _relay.Name, _game.Name)
-                    : WaitingForGame(_relay.Name));
+                if (_config.RouteWithoutGame)
+                {
+                    _log("routeWithoutGame = true - installing routes now without waiting for the game (debug mode).");
+                    InstallRoutes();
+                }
+
+                StartSupervisor(token);
+                StartGamePingProbe(token);
+                StartSpikeRecorder(token);
+                phases.Mark("start");
+                _log($"Connect took {phases}.");
+
+                SetState(TunnelState.Connected,
+                    _watcher.IsGameRunning
+                        ? new StatusText("svc.connectedAccelerating",
+                            $"Connected to {_relay.Name} - accelerating {_game.Name}", _relay.Name, _game.Name)
+                        : WaitingForGame(_relay.Name));
+            }
         }
         catch (Exception ex)
         {
@@ -1954,6 +2029,19 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
 
                 LogThroughput(tunnel);
 
+                if (_isFullTunnel)
+                {
+                    var fullSilence = tunnel.SinceLastHeard;
+                    if (fullSilence >= SilenceBeforeDead)
+                    {
+                        _pendingDoorMove = null;
+                        ForgetMoveOf(_relay);
+                        _log($"No answer from the relay for {fullSilence.TotalSeconds:F0}s - reconnecting.");
+                        await ReconnectAsync(ct).ConfigureAwait(false);
+                    }
+                    continue;
+                }
+
                 if (IdleForTooLong())
                 {
                     _log($"No game has been open for {IdleDisconnectAfter.TotalMinutes:F0} minutes - disconnecting, " +
@@ -2817,6 +2905,12 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
             }
         }
 
+        if (_isFullTunnel)
+        {
+            _fullTunnelNetwork?.Dispose();
+            _fullTunnelNetwork = null;
+        }
+
         // Fall back to the direct path before the first handshake, not after a few failures.
         // There is no such thing as a fast recovery here - the supervisor already waited 15
         // seconds of silence before calling us - so there is no quick success worth protecting
@@ -2907,7 +3001,22 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
                     ResetThroughputBaseline();
 
                     // A failover to another relay brings other ways in with it, and leaves the old ones behind.
-                    PinDoors();
+                    if (_isFullTunnel)
+                    {
+                        var otherRelayIps = _profile!.Relays
+                            .Select(r => ParseEndpoint(r.Endpoint).Address)
+                            .Where(ip => !ip.Equals(ParseEndpoint(relay.Endpoint).Address))
+                            .Distinct()
+                            .ToList();
+                        if (otherRelayIps.Count > 0)
+                        {
+                            routes.PinDoorRoutes(otherRelayIps);
+                        }
+                    }
+                    else
+                    {
+                        PinDoors();
+                    }
 
                     if (previousIp is not null && session.ClientIp.Equals(previousIp))
                     {
@@ -2934,12 +3043,21 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
                         routes.ConfigureAdapter(adapter.InterfaceIndex, session.ClientIp, prefixLength: 24, session.Mtu);
                     }
 
-                    InstallLobbyRoutes();
-                    ReinstallUnblockRoutes();
-
-                    if (hadGameRoutes || _config.RouteWithoutGame || (_watcher?.IsGameRunning ?? false))
+                    if (_isFullTunnel)
                     {
-                        InstallRoutes();
+                        routes.InstallGameRoutes(adapter.InterfaceIndex, FullTunnelRoutes);
+                        _fullTunnelNetwork = new FullTunnelNetwork(_log);
+                        _fullTunnelNetwork.Install(adapter.InterfaceIndex);
+                    }
+                    else
+                    {
+                        InstallLobbyRoutes();
+                        ReinstallUnblockRoutes();
+
+                        if (hadGameRoutes || _config.RouteWithoutGame || (_watcher?.IsGameRunning ?? false))
+                        {
+                            InstallRoutes();
+                        }
                     }
 
                     StartTunnel(client, ct);
@@ -2951,6 +3069,7 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
                 }
                 catch (OperationCanceledException)
                 {
+                    RollbackReconnectAttempt(adapter.InterfaceIndex, routes);
                     // Abandon here too: the socket is ours until StartPumping takes it over, and
                     // a reconnect loop that runs for hours would otherwise leak one per attempt.
                     Abandon(client);
@@ -2959,6 +3078,7 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
                 }
                 catch (Exception ex)
                 {
+                    RollbackReconnectAttempt(adapter.InterfaceIndex, routes);
                     Abandon(client);
                     _tunnel = null;
                     _error = ex.Message;
@@ -2973,6 +3093,34 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
             try { await Task.Delay(delay, ct).ConfigureAwait(false); }
             catch (OperationCanceledException) { return; }
             delay = TimeSpan.FromSeconds(Math.Min(delay.TotalSeconds * 2, 30));
+        }
+    }
+
+    internal void RollbackReconnectAttempt(uint adapterIndex, RouteManager? routes)
+    {
+        if (_isFullTunnel)
+        {
+            try
+            {
+                _fullTunnelNetwork?.Dispose();
+            }
+            catch (Exception ex)
+            {
+                _log($"Error releasing full tunnel network during reconnect rollback: {ex.Message}");
+            }
+            _fullTunnelNetwork = null;
+
+            if (routes is not null && routes.ActiveGameRouteCount > 0)
+            {
+                try
+                {
+                    routes.RemoveGameRoutes(adapterIndex);
+                }
+                catch (Exception ex)
+                {
+                    _log($"Error removing game routes during reconnect rollback: {ex.Message}");
+                }
+            }
         }
     }
 
@@ -3256,6 +3404,11 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
 
         try
         {
+            if (_isFullTunnel)
+            {
+                _fullTunnelNetwork?.Dispose();
+                _fullTunnelNetwork = null;
+            }
             ForgetUnblockRoutes();
             if (_routes is not null && _adapter is not null) _routes.RemoveAll(_adapter.InterfaceIndex);
         }
@@ -3334,6 +3487,7 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
             _cts.Dispose();
             _cts = null;
         }
+        _isFullTunnel = false;
         phases?.Mark("rest");
     }
 
@@ -3457,6 +3611,7 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
         // key and its arguments have to describe the same moment.
         var choiceNote = RelayChoiceNote();
         var refusal = LicenceRefusal();
+        var activeFull = ActiveFullTunnel;
 
         return new StatusMessage
         {
@@ -3464,6 +3619,7 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
             Detail = _detail,
             DetailCode = _detailText.Key.Length > 0 ? _detailText.Key : null,
             DetailArgs = _detailText.Args.Count > 0 ? _detailText.Args : null,
+            FullTunnel = activeFull,
             Error = _error,
             RelayId = carrying.Relay?.Id,
             RelayName = carrying.Relay?.Name,
@@ -3512,12 +3668,12 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
             // The last minute, as relay comparisons read it (RelayLoss): since connect, an hour of clean play hid
             // loss that had just started, and loss that had stopped stayed on screen for the rest of the evening.
             LossRatio = carrier?.RecentLoss() is { Sent: >= 5 } recent ? recent.Share : null,
-            GameRunning = _watcher?.IsGameRunning ?? false,
+            GameRunning = activeFull ? false : (_watcher?.IsGameRunning ?? false),
             // The game being played, or - when none is - the only one there is. With several there is
             // no selector, so naming the one relays happened to be measured for would read as a choice
             // nobody made; the UI says how many instead of listing them all.
-            GameName = (_watcher?.IsGameRunning ?? false) ? _game?.Name : OnlyGameName,
-            GameCount = _profile?.Games.Count ?? 0,
+            GameName = activeFull ? null : ((_watcher?.IsGameRunning ?? false) ? _game?.Name : OnlyGameName),
+            GameCount = activeFull ? 0 : (_profile?.Games.Count ?? 0),
             RelayChoice = RelayChoice,
             RelayChoiceNote = choiceNote?.English,
             RelayChoiceNoteCode = choiceNote?.Key,
@@ -3758,6 +3914,14 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
     /// </summary>
     private GameEntry ChooseGameForConnect(string? requested)
     {
+        if (ActiveFullTunnel)
+        {
+            var synth = _profile?.Games.FirstOrDefault(g => g.Id == "full-tunnel")
+                ?? _profile?.Games.FirstOrDefault()
+                ?? new GameEntry { Id = "full-tunnel", Name = "Full tunnel" };
+            return synth;
+        }
+
         var games = _profile!.Games;
         if (games.Count == 0) throw new InvalidOperationException("The profile declares no games.");
         if (!string.IsNullOrWhiteSpace(requested)) return FindGame(requested);
@@ -3853,6 +4017,8 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
     /// </summary>
     public List<SupportedGame> SupportedGames()
     {
+        if (ActiveFullTunnel) return [];
+
         var profile = _profile;
         if (profile is null) return [];
 

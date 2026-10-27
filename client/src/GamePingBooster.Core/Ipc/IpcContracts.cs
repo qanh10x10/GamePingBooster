@@ -239,6 +239,9 @@ public sealed class StatusMessage
 
     [JsonPropertyName("state")] public TunnelState State { get; set; } = TunnelState.Disconnected;
 
+    /// <summary>All-application self-hosted routing; absent in older services means game mode.</summary>
+    [JsonPropertyName("fullTunnel")] public bool FullTunnel { get; set; }
+
     /// <summary>Short human-readable line shown directly in the UI, in English.</summary>
     [JsonPropertyName("detail")] public string Detail { get; set; } = "";
 

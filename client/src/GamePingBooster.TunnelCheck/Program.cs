@@ -26,16 +26,20 @@ internal static partial class Program
 
     private static int Main(string[] args)
     {
+        if (args.Length > 0 && args[0] == "full") return AllScenarios(fullOnly: true);
         if (args.Length > 0 && args[0] == "rig") return RigMain(args[1..]);
         if (args.Length > 0 && args[0] == "service") return ServiceMain(args[1..]);
         if (args.Length > 0 && args[0] == "unblock") return UnblockMain(args[1..]);
         return AllScenarios();
     }
 
-    private static int AllScenarios()
+    private static int AllScenarios(bool fullOnly = false)
     {
         var scenarios = new (string Title, Func<Task> Run)[]
         {
+            ("Full tunnel network rollback (fake boundaries)", RunFullTunnelNetworkScenarios),
+            ("Full tunnel engine policy (no native network)", RunFullTunnelEngineScenarios),
+            ("Full tunnel packet transport", FullTunnelCarriesNonGameTraffic),
             ("Uplink", UplinkCarriesExactlyWhatTheOldLoopCarried),
             ("Downlink", DownlinkDeliversEveryPacketAndKeepsProbesOut),
             ("Keepalive", KeepaliveFindsTheRelay),
@@ -67,7 +71,7 @@ internal static partial class Program
             ("The in-game ping measures the match, not the lobby", TheGameServerIsTheUdpOne),
         };
 
-        foreach (var (title, run) in scenarios)
+        foreach (var (title, run) in scenarios.Where(s => !fullOnly || s.Title.StartsWith("Full tunnel", StringComparison.Ordinal)))
         {
             Console.WriteLine();
             Console.WriteLine($"{title}:");

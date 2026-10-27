@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Sockets;
 using Microsoft.Win32;
 
 namespace GamePingBooster.Service.Dns;
@@ -23,6 +25,12 @@ namespace GamePingBooster.Service.Dns;
 internal static class NrptPolicy
 {
     private const string PolicyPath = @"SYSTEM\CurrentControlSet\Services\Dnscache\Parameters\DnsPolicyConfig";
+
+    /// <summary>
+    /// The rule name prefix for full tunnel. Kept strictly apart from RulePrefix so unblock
+    /// tear-down does not wipe full-tunnel DNS settings.
+    /// </summary>
+    public const string FullTunnelPrefix = "HollowPingBooster-FullTunnel-";
 
     /// <summary>
     /// The rule name prefix. Fixed and recognisable on purpose: somebody reading this key on a
@@ -103,6 +111,56 @@ internal static class NrptPolicy
     }
 
     /// <summary>
+    /// Installs a single default NRPT rule for '.' pointing all domain lookups to the specified resolver.
+    /// Returns 1 on success.
+    /// </summary>
+    public static int InstallFullTunnel(string resolverAddress, Action<string>? log = null)
+    {
+        if (string.IsNullOrWhiteSpace(resolverAddress) ||
+            !IPAddress.TryParse(resolverAddress, out var ip) ||
+            ip.AddressFamily != AddressFamily.InterNetwork)
+        {
+            throw new ArgumentException(
+                $"Resolver address must be a valid IPv4 address, got '{resolverAddress}'.",
+                nameof(resolverAddress));
+        }
+
+        RemoveFullTunnel(log);
+
+        using var policy = Registry.LocalMachine.CreateSubKey(PolicyPath, writable: true)
+            ?? throw new InvalidOperationException($"Could not open HKLM\\{PolicyPath}.");
+
+        var name = FullTunnelPrefix + "Default";
+        using var rule = policy.CreateSubKey(name, writable: true);
+        if (rule is null)
+        {
+            log?.Invoke($"Could not create the full-tunnel NRPT rule {name}.");
+            return 0;
+        }
+
+        rule.SetValue("Version", Version, RegistryValueKind.DWord);
+        rule.SetValue("Name", new[] { "." }, RegistryValueKind.MultiString);
+        rule.SetValue("GenericDNSServers", resolverAddress, RegistryValueKind.String);
+        rule.SetValue("ConfigOptions", ConfigUseGenericDnsServers, RegistryValueKind.DWord);
+
+        DnsCache.Flush();
+        log?.Invoke($"NRPT: full-tunnel rule points '.' at {resolverAddress}.");
+        return 1;
+    }
+
+    /// <summary>
+    /// Removes only the full-tunnel NRPT rule(s), leaving unblock and other rules intact.
+    /// </summary>
+    public static int RemoveFullTunnel(Action<string>? log = null) =>
+        RemoveWhere(log ?? (_ => {}), name => name.StartsWith(FullTunnelPrefix, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Removes rules matching a specific application ID under the unblock prefix.
+    /// </summary>
+    public static int Remove(string appId, Action<string> log) =>
+        RemoveWhere(log, name => name.StartsWith(RulePrefix + appId + "-", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
     /// Removes every rule this service owns. Never throws: it is called from shutdown and from the
     /// rollback path of a failed enable, and neither can afford to fail.
     /// </summary>
@@ -161,6 +219,23 @@ internal static class NrptPolicy
 
             return policy.GetSubKeyNames()
                 .Count(n => AllPrefixes.Any(p => n.StartsWith(p, StringComparison.OrdinalIgnoreCase)));
+        }
+        catch (Exception)
+        {
+            return 0;
+        }
+    }
+
+    /// <summary>Counts installed full-tunnel NRPT rules.</summary>
+    public static int CountFullTunnel()
+    {
+        try
+        {
+            using var policy = Registry.LocalMachine.OpenSubKey(PolicyPath);
+            if (policy is null) return 0;
+
+            return policy.GetSubKeyNames()
+                .Count(n => n.StartsWith(FullTunnelPrefix, StringComparison.OrdinalIgnoreCase));
         }
         catch (Exception)
         {
