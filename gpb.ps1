@@ -988,76 +988,7 @@ switch ($Verb.ToLowerInvariant()) {
     }
 
     'installer' {
-        # Inno Setup, not WiX: WiX v7 refuses to run until its Open Source Maintenance Fee EULA
-        # is accepted, which is a licensing commitment for a commercial product. Inno is free for
-        # commercial use. See installer/GamePingBooster.iss.
-        $iscc = @(
-            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
-            "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
-        ) | Where-Object { Test-Path $_ } | Select-Object -First 1
-
-        if (-not $iscc) {
-            throw "Inno Setup 6 not found. Install it from https://jrsoftware.org/isdl.php - " +
-                  "the default location is fine, this looks in Program Files."
-        }
-
-        # The version is set BEFORE publishing, not after, because the binaries carry it too:
-        # Directory.Build.props reads VERSION at compile time. Setting it afterwards would
-        # produce a setup .exe named 0.2.0 full of 0.1.0 binaries, which is the exact failure
-        # this whole arrangement exists to prevent.
-        if ($Arg1) {
-            $version = Set-GpbVersion $Arg1
-            Say "Version set to $version (written to VERSION)"
-        } else {
-            $version = Get-GpbVersion
-            Say "Version $version - pass one to change it: .\gpb.ps1 installer 0.2.0"
-        }
-
-        # Publish first. Packaging whatever happens to be lying in the publish folder is how an
-        # installer ends up shipping last week's binary, and nothing about the result would say
-        # so.
-        # The build only - not `publish`, which also stops the running service and installs into
-        # ProgramData. See Invoke-AotPublish.
-        Say "Building before packaging"
-        Invoke-AotPublish
-
-        # Refuse early and name the missing file. Inno's own error for a missing source is a
-        # line number in a .iss most people will never have read.
-        $required = @{
-            'the service'  = Join-Path $client 'src\GamePingBooster.Service\bin\Release\net9.0-windows\win-x64\publish\gpb-service.exe'
-            'the UI'       = Join-Path $client 'src\GamePingBooster.App\bin\Release\net9.0-windows\win-x64\publish\GamePingBooster.exe'
-            'wintun.dll'   = Join-Path $client 'native\wintun\wintun.dll'
-            # Avalonia's renderer. Native AOT leaves it beside the binary rather than inside it,
-            # and an installer that shipped without it produced an app that crashed on launch
-            # with a TypeInitializationException naming neither the file nor the installer.
-            'libSkiaSharp' = Join-Path $client 'src\GamePingBooster.App\bin\Release\net9.0-windows\win-x64\publish\libSkiaSharp.dll'
-        }
-        # Every profile the installer ships, read from the .iss itself rather than listed again here,
-        # so a game added there is checked here without anyone remembering to.
-        foreach ($p in Get-ShippedProfileFiles) {
-            $required["the profile $($p.Name)"] = $p.Path
-        }
-        foreach ($what in $required.Keys) {
-            if (-not (Test-Path $required[$what])) {
-                throw "Cannot package: $what is missing at $($required[$what])"
-            }
-        }
-
-        Say "Building the installer"
-        # /D overrides the #ifndef fallback in the .iss. One string, three places it has to
-        # appear: the setup filename, AppVersion, and the Programs and Features entry.
-        # Two defines, not one: AppVersion is free text and keeps any -suffix, while a Windows
-        # version resource is four numbers and nothing else. Splitting here rather than in the
-        # .iss because Inno's preprocessor has no string split worth reading.
-        $numeric = ($version -split '-')[0]
-        & $iscc "/DAppVersion=$version" "/DAppVersionNumeric=$numeric" (Join-Path $root 'installer\GamePingBooster.iss')
-        if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
-
-        $out = Join-Path $root 'installer\dist'
-        Say "Installer written to $out" 'Green'
-        Say "  HollowPingBooster-Setup-$version.exe" 'Green'
-        Warn "It is NOT code signed. Windows SmartScreen will warn every person who runs it,"
-        Warn "and many will stop there. Signing needs a certificate you have to buy."
+        throw 'Legacy packaging is disabled. Use: python installer/build.py --iscc <ISCC.exe> --output-dir <Builds>'
     }
 
     'entry' {

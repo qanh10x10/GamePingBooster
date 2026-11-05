@@ -59,6 +59,9 @@ public sealed class CommandMessage
     /// <summary>set-relay: the pre-shared key. Never sent back up. Null means "keep the stored one".</summary>
     [JsonPropertyName("psk")] public string? Psk { get; set; }
 
+    /// <summary>set-relay: the pre-shared key for built-in Hollow VPS. Never sent back up. Null means "keep the stored one".</summary>
+    [JsonPropertyName("hollowPsk")] public string? HollowPsk { get; set; }
+
     /// <summary>
     /// set-relay: base URL of the licence server, or empty for a self-hosted installation.
     ///
@@ -305,6 +308,12 @@ public sealed class StatusMessage
 
     /// <summary>False until a relay and a key have been configured. Drives the first-run prompt.</summary>
     [JsonPropertyName("configured")] public bool Configured { get; set; }
+
+    /// <summary>True when a built-in Hollow VPS key is saved.</summary>
+    [JsonPropertyName("hasHollowKey")] public bool HasHollowKey { get; set; }
+
+    /// <summary>True when a custom relay key is saved.</summary>
+    [JsonPropertyName("hasCustomKey")] public bool HasCustomKey { get; set; }
 
     /// <summary>
     /// Round-trip time to the relay in milliseconds; null until measured. **Half the path.**

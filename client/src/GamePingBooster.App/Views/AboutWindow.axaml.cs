@@ -20,11 +20,6 @@ public partial class AboutWindow : SurfaceWindow
         if (DataContext is AboutViewModel vm) Open(vm.RepositoryUrl);
     }
 
-    private void OnEmailClick(object? sender, RoutedEventArgs e)
-    {
-        if (DataContext is AboutViewModel vm) Open($"mailto:{vm.Email}");
-    }
-
     /// <summary>
     /// Hands a URL to the shell, which is the only way to open a browser without knowing or
     /// caring which one the person uses.

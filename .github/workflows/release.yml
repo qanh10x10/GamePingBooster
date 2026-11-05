@@ -101,63 +101,17 @@ jobs:
           choco install innosetup -y --no-progress
           if ($LASTEXITCODE -ne 0) { throw "choco install innosetup failed" }
 
-      - name: Fetch and verify wintun.dll
-        # Not committed (see client/native/wintun/README.md - third-party binary, official signed
-        # build only). Downloaded here and verified the same way the README tells a human to:
-        # Authenticode signature must be Valid and signed by WireGuard LLC.
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build self-contained Hollow installer (no install or launch)
         run: |
           $ErrorActionPreference = 'Stop'
-          $ver = $env:WINTUN_VERSION
-          $zipUrl = "https://www.wintun.net/builds/wintun-$ver.zip"
-          Write-Host "Downloading $zipUrl"
-          Invoke-WebRequest -Uri $zipUrl -OutFile wintun.zip
-
-          Expand-Archive -Path wintun.zip -DestinationPath wintun_extracted
-          $dll = Get-ChildItem -Path wintun_extracted -Recurse -Filter wintun.dll |
-            Where-Object { $_.FullName -match '\\amd64\\' } | Select-Object -First 1
-          if (-not $dll) { throw "wintun.dll (amd64) not found inside wintun-$ver.zip" }
-
-          $sig = Get-AuthenticodeSignature $dll.FullName
-          if ($sig.Status -ne 'Valid') {
-            throw "wintun.dll signature status is '$($sig.Status)', expected Valid. Refusing to use it."
-          }
-          if ($sig.SignerCertificate.Subject -notmatch 'WireGuard LLC') {
-            throw "wintun.dll is signed by '$($sig.SignerCertificate.Subject)', expected WireGuard LLC. Refusing to use it."
-          }
-          Write-Host "wintun.dll signature OK: $($sig.SignerCertificate.Subject)"
-
-          New-Item -ItemType Directory -Force -Path client\native\wintun | Out-Null
-          Copy-Item $dll.FullName client\native\wintun\wintun.dll -Force
-
-      - name: Prepare the server profiles
-        # profiles/<game>-vn.json (real IP ranges) are gitignored on purpose - live production
-        # context, not public. A CI checkout never has them. Per project decision, this workflow
-        # packages the public example profiles instead; swap in the real ones before this step
-        # (e.g. from a secret) if a release needs to ship real IPs.
-        #
-        # The logic lives in gpb.ps1 and reads the list from installer/GamePingBooster.iss; see the verb.
-        #
-        # NO `if ($LASTEXITCODE -ne 0)` after this call. That check belongs after a NATIVE program.
-        # release-profiles runs none, so in this fresh session $LASTEXITCODE does not exist, and
-        # `$null -ne 0` is TRUE: the step threw "failed" after the verb had succeeded, and v0.2.7 was
-        # lost to it. A failure inside gpb.ps1 is a throw, and under 'Stop' a throw fails the step.
-        run: |
-          $ErrorActionPreference = 'Stop'
-          .\gpb.ps1 release-profiles
-
-      - name: Build client and package the installer
-        # Reuses gpb.ps1's own `installer` verb end to end: it Native-AOT publishes both the
-        # service and the UI (-c Release -r win-x64), checks every file the installer needs is
-        # there, then runs Inno Setup. No version argument: VERSION was already validated above
-        # to match the tag, so gpb.ps1 is left to read it rather than being told it a second time.
-        run: |
-          $ErrorActionPreference = 'Stop'
-          .\gpb.ps1 installer
-          if ($LASTEXITCODE -ne 0) { throw "gpb.ps1 installer failed" }
-
-          $installer = "installer\dist\HollowPingBooster-Setup-$env:VERSION.exe"
-          if (-not (Test-Path $installer)) { throw "Expected installer not found: $installer" }
-          Write-Host "Installer OK: $installer"
+          $env:TMPDIR = $env:RUNNER_TEMP
+          python installer/build.py --iscc "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" --output-dir installer/dist
+          if ($LASTEXITCODE -ne 0) { throw "Hollow installer build failed" }
 
       # There is deliberately no client zip. Releases up to v0.2.1 shipped
       # GamePingBooster-Client-x.y.z-win-x64.zip beside the installer, and players kept downloading
@@ -230,7 +184,7 @@ jobs:
           # then publishes, which is the order immutable releases require.
           gh release create $tag @assets `
             --repo $repo `
-            --title "Game Ping Booster v$env:VERSION" `
+            --title "Hollow Ping Booster v$env:VERSION" `
             --verify-tag `
             --generate-notes
           if ($LASTEXITCODE -ne 0) { throw "gh release create failed" }

@@ -61,7 +61,7 @@ public static class UpdateInstaller
             Timeout = Timeout.InfiniteTimeSpan,
         };
         http.DefaultRequestHeaders.UserAgent.Add(
-            new ProductInfoHeaderValue("GamePingBooster", UpdateChecker.CurrentVersion() ?? "0.0.0"));
+            new ProductInfoHeaderValue("HollowPingBooster", UpdateChecker.CurrentVersion() ?? "0.0.0"));
 
         using var stall = CancellationTokenSource.CreateLinkedTokenSource(ct);
         stall.CancelAfter(StallTimeout);

@@ -15,11 +15,14 @@ internal static class StringsVi
     internal static readonly IReadOnlyDictionary<string, string> Values = new Dictionary<string, string>
     {
         // ------------------------------------------------------------------ main window
+        ["main.title"] = "Hollow Ping Booster",
         ["main.menu.tip"] = "Menu",
         ["main.menu.settings"] = "Cài đặt",
         ["fullTunnel.scope"] = "Phạm vi",
-        ["fullTunnel.apps"] = "Mọi game và ứng dụng",
-        ["fullTunnel.hint"] = "Full tunnel: toàn bộ Internet đi qua VPS. IPv6 bị chặn khi kết nối.",
+        ["fullTunnel.apps"] = "Mọi game và ứng dụng (IPv4)",
+        ["fullTunnel.hint"] = "Full tunnel (IPv4): toàn bộ game & ứng dụng đi qua VPS. Không có kill switch khi kết nối lại; DNS/IPv6 không được bảo vệ chỉ từ cấu hình.",
+        ["fullTunnel.routes"] = "Tuyến IPv4 mặc định",
+        ["fullTunnel.policy.tip"] = "Chế độ IPv4 cho mọi game và ứng dụng. Không có kill switch: lưu lượng đi trực tiếp khi kết nối lại. DNS và IPv6 không được bảo vệ chỉ từ cấu hình.",
         ["svc.fullTunnelConnected"] = "Full tunnel qua {0} - mọi game và ứng dụng",
         ["main.menu.games"] = "Game được hỗ trợ",
         ["main.menu.reportLag"] = "Báo lag",
@@ -132,7 +135,7 @@ internal static class StringsVi
         ["licence.expiresIn"] = "Giấy phép hết hạn sau {0} phút",
 
         ["pipe.closed"] = "Dịch vụ đã đóng kết nối.",
-        ["pipe.unreachable"] = "Không liên lạc được với dịch vụ nền. Kiểm tra xem dịch vụ 'GamePingBooster' có đang chạy không.",
+        ["pipe.unreachable"] = "Không liên lạc được với dịch vụ nền. Kiểm tra xem dịch vụ 'HollowPingBooster' có đang chạy không.",
         ["pipe.lost"] = "Mất kết nối tới dịch vụ nền: {0}",
 
         ["pipe.notConnected"] = "Chưa kết nối tới dịch vụ nền.",
@@ -155,6 +158,11 @@ internal static class StringsVi
         ["settings.psk.placeholderNew"] = "44 ký tự",
         ["settings.psk.hintKeep"] = "Đã có khoá được lưu. App không hiện lại khoá, để trống ô này là giữ nguyên.",
         ["settings.psk.hintNew"] = "Bộ cài máy chủ in ra khoá này, ngay cạnh địa chỉ.",
+        ["settings.hollowPsk"] = "Khoá Singapore West",
+        ["settings.hollowPsk.placeholderKeep"] = "Để trống nếu giữ nguyên khoá cũ",
+        ["settings.hollowPsk.placeholderNew"] = "Nhập khoá Singapore West",
+        ["settings.hollowPsk.hintKeep"] = "Đã có khoá Singapore West được lưu. App không hiện lại khoá, để trống ô này là giữ nguyên.",
+        ["settings.hollowPsk.hintNew"] = "Khoá của máy chủ Singapore West tích hợp. Tách biệt với khoá relay tự nhập.",
         ["settings.licence"] = "Máy chủ giấy phép",
         ["settings.licence.hint"] =
             "Để trống khi dùng VPS riêng và full tunnel (mọi game, ứng dụng; không cần profile game). " +

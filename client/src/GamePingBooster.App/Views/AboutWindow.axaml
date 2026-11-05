@@ -62,7 +62,7 @@
     <StackPanel>
       <TextBlock Classes="label" Text="{DynamicResource about.author}" />
       <TextBlock Classes="value" Text="{Binding Author}" />
-      <Button Classes="link" Content="{Binding Email}" Click="OnEmailClick" Margin="0,2,0,0" />
+
     </StackPanel>
 
     <StackPanel>
@@ -72,7 +72,7 @@
 
     <Border Background="#1E293B" CornerRadius="8" Padding="12">
       <StackPanel Spacing="6">
-        <TextBlock Classes="label" Text="{Binding LicenceTitle}" />
+        <TextBlock Classes="label" TextWrapping="Wrap" Text="{Binding LicenceTitle}" />
         <TextBlock Classes="label" TextWrapping="Wrap" FontSize="10"
                    Text="{Binding LicenceText}" />
       </StackPanel>

@@ -493,11 +493,6 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
     {
         if (ActiveFullTunnel)
         {
-            if (_config.RelayEndpoints.Count == 0)
-            {
-                throw new InvalidOperationException("Full tunnel requires at least one self-hosted relay endpoint.");
-            }
-
             var synthGame = new GameEntry
             {
                 Id = "full-tunnel",
@@ -516,12 +511,25 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
             _profileSource = "full-tunnel";
             _profileHashes = [];
 
-            await ApplySelfHostedRelayAsync(ct).ConfigureAwait(false);
-            if (_profile.Relays.Count == 0)
+            // Built-in Hollow VPS is always an explicit option in self-hosted full tunnel alongside optional custom entries.
+            // DNS resolution is deferred until connect time so service startup does not depend on public DNS.
+            var builtin = new RelayEntry
             {
-                throw new InvalidOperationException("Full tunnel failed to resolve any relay endpoints.");
+                Id = ServiceConfig.BuiltInRelayId,
+                Name = ServiceConfig.BuiltInRelayName,
+                Location = "Singapore",
+                Endpoint = ServiceConfig.BuiltInRelayEndpoint,
+            };
+
+            var relays = new List<RelayEntry> { builtin };
+
+            if (_config.RelayEndpoints.Count > 0)
+            {
+                await ApplySelfHostedRelayAsync(ct).ConfigureAwait(false);
+                relays.AddRange(_profile.Relays);
             }
 
+            _profile.Relays = relays;
             _log($"Loaded full tunnel profile ({synthGame.Name}) with {_profile.Relays.Count} relay(s)");
             return;
         }
@@ -705,7 +713,6 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
 
             phases.Mark("profile");
             _game = ChooseGameForConnect(gameId);
-            var psk = System.Text.Encoding.UTF8.GetBytes(_config.Psk);
 
             // Every relay compares the handshake's timestamp with its own clock, so a clock outside
             // the window fails every one of them, silently. Correct it BEFORE the first handshake.
@@ -726,11 +733,33 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
             ResetThroughputBaseline();
             _choiceAtConnect = RelayChoice;
             var preferred = string.IsNullOrWhiteSpace(relayId) ? RelayChoice : relayId;
-            if (_isFullTunnel && preferred is not null && !_profile!.Relays.Any(r => r.Id.Equals(preferred, StringComparison.OrdinalIgnoreCase)))
+            if (_isFullTunnel)
             {
-                preferred = null;
+                if (preferred is null)
+                {
+                    preferred = _config.RelayEndpoints.Count == 0 ? ServiceConfig.BuiltInRelayId : null;
+                }
+                else if (!_profile!.Relays.Any(r => r.Id.Equals(preferred, StringComparison.OrdinalIgnoreCase)))
+                {
+                    preferred = _config.RelayEndpoints.Count == 0 ? ServiceConfig.BuiltInRelayId : null;
+                }
             }
             _chosenByHandAtConnect = preferred;
+
+            var isBuiltinTarget = _isFullTunnel && (
+                string.Equals(preferred, ServiceConfig.BuiltInRelayId, StringComparison.OrdinalIgnoreCase) ||
+                (preferred is null && _config.RelayEndpoints.Count == 0)
+            );
+            if (isBuiltinTarget)
+            {
+                var builtin = _profile!.Relays.First(r => r.Id.Equals(ServiceConfig.BuiltInRelayId, StringComparison.OrdinalIgnoreCase));
+                // The built-in hostname is deliberately resolved only when the user selects it.
+                // Startup/profile loading must not depend on public DNS.
+                builtin.Endpoint = await RelayPaths.ResolveEndpointAsync(builtin.Endpoint, token).ConfigureAwait(false);
+            }
+            var key = isBuiltinTarget ? _config.HollowPsk : _config.Psk;
+            var psk = System.Text.Encoding.UTF8.GetBytes(key);
+
             (_relay, _tunnel) = await SelectRelayAsync(preferred, psk, token).ConfigureAwait(false);
             var endpoint = ParseEndpoint(_relay.Endpoint);
             var session = _tunnel.Session;
@@ -745,7 +774,8 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
             _routes.PinRelayRoute(endpoint.Address);
             if (_isFullTunnel)
             {
-                var otherRelayIps = _profile!.Relays
+                // Only pin peers from the selected relay's trust domain.
+                var otherRelayIps = FailoverOrder(_relay)
                     .Select(r => ParseEndpoint(r.Endpoint).Address)
                     .Where(ip => !ip.Equals(endpoint.Address))
                     .Distinct()
@@ -913,10 +943,28 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
             double? rtt = null;
             try
             {
-                using var ping = new Ping();
-                var reply = await ping.SendPingAsync(ParseEndpoint(relay.Endpoint).Address, RelayPingTimeoutMs)
-                    .ConfigureAwait(false);
-                if (reply.Status == IPStatus.Success) rtt = reply.RoundtripTime;
+                IPAddress? ip = null;
+                if (IPEndPoint.TryParse(relay.Endpoint, out var ep))
+                {
+                    ip = ep.Address;
+                }
+                else if (!relay.Id.Equals(ServiceConfig.BuiltInRelayId, StringComparison.OrdinalIgnoreCase))
+                // Built-in DNS stays lazy until Connect has resolved the selected endpoint.
+                {
+                    try
+                    {
+                        var resolved = await RelayPaths.ResolveEndpointAsync(relay.Endpoint, default, TimeSpan.FromMilliseconds(500)).ConfigureAwait(false);
+                        if (IPEndPoint.TryParse(resolved, out var resolvedEp)) ip = resolvedEp.Address;
+                    }
+                    catch { }
+                }
+
+                if (ip is not null)
+                {
+                    using var ping = new Ping();
+                    var reply = await ping.SendPingAsync(ip, RelayPingTimeoutMs).ConfigureAwait(false);
+                    if (reply.Status == IPStatus.Success) rtt = reply.RoundtripTime;
+                }
             }
             catch (Exception)
             {
@@ -1236,6 +1284,10 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
         if (_profile!.Relays.Count == 0) throw new InvalidOperationException("The profile declares no relays.");
         _connectLeftDoor = null;
         var relays = RelaysForGame(_game);
+        if (_isFullTunnel && string.IsNullOrWhiteSpace(preferredId) && _config.RelayEndpoints.Count > 0)
+        {
+            relays = relays.Where(r => !r.Id.Equals(ServiceConfig.BuiltInRelayId, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
         var paths = RelayPaths.Expand(relays);
 
         // A relay the operator has taken off the game being PLAYED is not used for it, chosen or not, and the choice
@@ -1265,13 +1317,44 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
             var chosen = _profile.Relays.FirstOrDefault(r => r.Id.Equals(preferredId, StringComparison.OrdinalIgnoreCase));
             if (chosen is not null)
             {
-                _log($"Using {chosen.Name} [{chosen.Id}], the relay chosen in the app.");
+                var target = chosen;
+                if (!IPEndPoint.TryParse(chosen.Endpoint, out _))
+                {
+                    try
+                    {
+                        var numeric = await RelayPaths.ResolveEndpointAsync(chosen.Endpoint, ct).ConfigureAwait(false);
+                        target = new RelayEntry
+                        {
+                            Id = chosen.Id,
+                            Name = chosen.Name,
+                            Location = chosen.Location,
+                            Endpoint = numeric,
+                            PublicKey = chosen.PublicKey,
+                            Games = chosen.Games,
+                            SecondaryGames = chosen.SecondaryGames,
+                            EntrySwitching = chosen.EntrySwitching,
+                            Entries = chosen.Entries
+                        };
+                    }
+                    catch (Exception ex)
+                    {
+                        _log($"Could not resolve endpoint for {chosen.Name} ({chosen.Endpoint}): {ex.Message}");
+                        throw;
+                    }
+                }
+
+                _log($"Using {target.Name} [{target.Id}], the relay chosen in the app.");
                 try
                 {
-                    return await SelectAmongAsync([chosen], RelayPaths.Expand([chosen]), psk, ct).ConfigureAwait(false);
+                    return await SelectAmongAsync([target], RelayPaths.Expand([target]), psk, ct).ConfigureAwait(false);
                 }
                 catch (Exception ex) when (!ct.IsCancellationRequested)
                 {
+                    if (_isFullTunnel)
+                    {
+                        // In full tunnel mode, explicit server choice must not fall back across trust boundaries.
+                        throw;
+                    }
                     _log($"{chosen.Name}, the relay chosen in the app, did not answer ({ex.Message}) - " +
                          "choosing the fastest relay instead.");
                     return await SelectAmongAsync(relays, paths, psk, ct).ConfigureAwait(false);
@@ -2875,7 +2958,8 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
         if (previous is null || adapter is null || routes is null) return;
 
         var previousIp = _tunnel?.Session.ClientIp;
-        var psk = System.Text.Encoding.UTF8.GetBytes(_config.Psk);
+        var isBuiltin = previous.Id.Equals(ServiceConfig.BuiltInRelayId, StringComparison.OrdinalIgnoreCase);
+        var psk = System.Text.Encoding.UTF8.GetBytes(isBuiltin ? _config.HollowPsk : _config.Psk);
 
         // Flush before the relay changes underneath it: a destinations line naming the wrong
         // relay is worse than no line, because the whole point is comparing one against another.
@@ -3003,7 +3087,7 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
                     // A failover to another relay brings other ways in with it, and leaves the old ones behind.
                     if (_isFullTunnel)
                     {
-                        var otherRelayIps = _profile!.Relays
+                        var otherRelayIps = FailoverOrder(relay)
                             .Select(r => ParseEndpoint(r.Endpoint).Address)
                             .Where(ip => !ip.Equals(ParseEndpoint(relay.Endpoint).Address))
                             .Distinct()
@@ -3145,9 +3229,16 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
     private List<RelayEntry> FailoverOrder(RelayEntry current)
     {
         var order = new List<RelayEntry> { current };
+        var isCurrentBuiltin = current.Id.Equals(ServiceConfig.BuiltInRelayId, StringComparison.OrdinalIgnoreCase);
         foreach (var relay in RelaysForGame(_game))
         {
-            if (!relay.Id.Equals(current.Id, StringComparison.OrdinalIgnoreCase)) order.Add(relay);
+            if (relay.Id.Equals(current.Id, StringComparison.OrdinalIgnoreCase)) continue;
+            if (ActiveFullTunnel)
+            {
+                var isRelayBuiltin = relay.Id.Equals(ServiceConfig.BuiltInRelayId, StringComparison.OrdinalIgnoreCase);
+                if (isCurrentBuiltin != isRelayBuiltin) continue;
+            }
+            order.Add(relay);
         }
         return order;
     }
@@ -3649,8 +3740,15 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
             // banner asking for the address and key that were already there. What is missing on
             // that machine is the profile, which is a different sentence and not this flag's to
             // say; Connect reports it, and names the file.
-            Configured = (_config.HasKey || _token is not null) &&
-                         (Relays.Count > 0 || _config.RelayEndpoints.Count > 0),
+            // Readiness reflects selected server credential, not a token from unrelated domain.
+            Configured = activeFull
+                ? (string.Equals(_config.DefaultRelayId, ServiceConfig.BuiltInRelayId, StringComparison.OrdinalIgnoreCase)
+                   || (string.IsNullOrWhiteSpace(_config.DefaultRelayId) && _config.RelayEndpoints.Count == 0)
+                    ? !string.IsNullOrWhiteSpace(_config.HollowPsk)
+                    : (_config.RelayEndpoints.Count > 0 && !string.IsNullOrWhiteSpace(_config.Psk)))
+                : ((_config.HasKey || _token is not null) && (Relays.Count > 0 || _config.RelayEndpoints.Count > 0)),
+            HasHollowKey = !string.IsNullOrWhiteSpace(_config.HollowPsk),
+            HasCustomKey = !string.IsNullOrWhiteSpace(_config.Psk),
             TunnelPingMs = carrier?.LastRttMs,
             // The real thing when the game's own server answers an echo through the tunnel, and the
             // estimate when it does not.
@@ -3760,10 +3858,14 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
     /// the pipe is open to BuiltinUsers, so anything can send this. Rejecting a malformed
     /// endpoint here is what stops a bad value reaching the tunnel.
     /// </summary>
+    public Task<string?> SetRelayAsync(IReadOnlyList<string>? endpoints, string? psk,
+        string? licenceUrl, CancellationToken ct) => SetRelayAsync(endpoints, psk, licenceUrl, null, ct);
+
     public async Task<string?> SetRelayAsync(IReadOnlyList<string>? endpoints, string? psk,
-        string? licenceUrl, CancellationToken ct)
+        string? licenceUrl, string? hollowPsk, CancellationToken ct)
     {
         psk = psk?.Trim();
+        hollowPsk = hollowPsk?.Trim();
 
         // Null means "leave it alone", empty means "clear it". The distinction matters: the
         // settings screen sends the box's contents every time, and an installation that has a
@@ -3815,6 +3917,10 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
         // that "an address is invalid" when four were pasted in is not much of a report.
         foreach (var endpoint in cleaned)
         {
+            if (string.Equals(endpoint, ServiceConfig.BuiltInRelayEndpoint, StringComparison.OrdinalIgnoreCase))
+            {
+                return $"{ServiceConfig.BuiltInRelayEndpoint} is the built-in Singapore West server. Select it in the main window instead of adding it as a custom relay.";
+            }
             if (RelayPaths.ValidateEndpoint(endpoint, out _, out _) is { } err)
             {
                 return err;
@@ -3829,27 +3935,36 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
             return "The key is too short - it must be at least 16 characters.";
         }
 
+        var keepExistingHollow = string.IsNullOrWhiteSpace(hollowPsk);
+        if (keepExistingHollow)
+        {
+            hollowPsk = _config.HollowPsk;
+        }
+        else if (hollowPsk!.Length < 16)
+        {
+            return "The Hollow VPS key is too short - it must be at least 16 characters.";
+        }
+
         // Kept so the change can be undone if the write fails. Without this the service would
         // go on running with settings it had just told the user it could not save, and a
         // restart would silently put the old ones back - which is the worst of both, because
         // the machine behaves one way now and a different way tomorrow for no visible reason.
         var previousEndpoints = _config.RelayEndpoints;
         var previousPsk = _config.Psk;
+        var previousHollowPsk = _config.HollowPsk;
         var previousLicenceUrl = _config.LicenceUrl;
         var previousRelayId = _config.DefaultRelayId;
 
         _config.RelayEndpoints = cleaned;
-        _config.Psk = psk;
+        _config.Psk = psk ?? string.Empty;
+        _config.HollowPsk = hollowPsk ?? string.Empty;
         if (licenceUrl is not null) _config.LicenceUrl = licenceUrl;
 
-        // Clear the preferred relay id along with it.
-        //
-        // A self-hosted endpoint REPLACES the profile's relay list, so an id that referred to an
-        // entry in that list now refers to nothing. Leaving it behind produces a configuration
-        // file that contradicts itself - "defaultRelayId": "sg-1" sitting next to a Hong Kong
-        // endpoint - and the next person to read it, including a future me, has to work out
-        // which half is a lie.
-        _config.DefaultRelayId = null;
+        // Clear the preferred relay id along with it if pointing to an old custom relay.
+        if (_config.DefaultRelayId != ServiceConfig.BuiltInRelayId)
+        {
+            _config.DefaultRelayId = null;
+        }
         try
         {
             _config.Save();
@@ -3858,6 +3973,7 @@ internal sealed partial class TunnelEngine : IAsyncDisposable
         {
             _config.RelayEndpoints = previousEndpoints;
             _config.Psk = previousPsk;
+            _config.HollowPsk = previousHollowPsk;
             _config.LicenceUrl = previousLicenceUrl;
             _config.DefaultRelayId = previousRelayId;
             return $"Could not save the settings: {ex.Message}";

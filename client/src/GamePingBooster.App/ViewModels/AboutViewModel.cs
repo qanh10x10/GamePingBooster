@@ -11,11 +11,10 @@ namespace GamePingBooster.App.ViewModels;
 /// </summary>
 public sealed class AboutViewModel
 {
-    public string Author => "Viet Nguyen";
-    public string Email => "vietnguyen010@gmail.com";
+    public string Author => "Hollow";
     public string RepositoryUrl => "https://github.com/qanh10x10/GamePingBooster";
 
-    public string LicenceTitle => "MIT License - Copyright (c) 2026 Viet Nguyen";
+    public string LicenceTitle => "MIT License - Copyright (c) 2026 Hollow";
 
     /// <summary>
     /// The MIT licence, in full.

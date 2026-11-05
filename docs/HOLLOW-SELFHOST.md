@@ -1,10 +1,12 @@
-# Hollow Ping Booster self-host fork
+# Hollow Ping Booster v0.0.2 self-host fork
 
 ## Configure
 
-- Relay: `ping.hollow-agent.xyz:51820` (UDP, Cloudflare DNS-only).
-- Pre-shared key: the existing VPS key. Never commit it or paste it into reports.
-- Licence server: empty. The hostname above is a relay, not an HTTPS licence service.
+- Built-in server: **Singapore West**, endpoint `ping.hollow-agent.xyz:51820` (UDP, Cloudflare DNS-only).
+- Pre-shared key: enter the existing VPS key in the Hollow VPS credential field. Never commit it or paste it into reports.
+- Custom relay addresses are a separate optional setting. Leave them empty when using Hollow VPS;
+  another operator can enter their own endpoint and key later.
+- Licence server: empty. The hostname above is a selectable relay, not an HTTPS licence service.
 - Both the UI **and** Windows service must run this source build. The installed vendor 0.5.7 service refuses self-host relays.
 
 ## Full tunnel (self-host default)
@@ -37,14 +39,14 @@ mutex `Local\HollowPingBooster.SingleInstance`, data folders `%ProgramData%\Holl
 and `%LOCALAPPDATA%\HollowPingBooster`, and adapter `Hollow Ping Booster`.
 Assembly/executable filenames remain unchanged, so identify processes by their exact path,
 not their image name. The Wintun driver is shared and is not removed by this fork's uninstaller.
-Original MIT attribution is retained. Update checks
-use `qanh10x10/GamePingBooster` and a separate cache; installer assets are named
+Hollow modifications are Copyright (c) 2026 Hollow; the inherited MIT notice remains in `LICENSE`. Update checks
+use a separate cache; installer assets are named
 `HollowPingBooster-Setup-{version}.exe`.
 
 ## Source provenance and REA boundary
 
 The public source base is **0.3.9**, commit
-`9c4f4a67c4dd93476bc3c798385430cd1be9a0ee`.
+`9c4f4a67c4dd93476bc3c798385430cd1be9a0ee`. The standalone fork version is **v0.0.1**.
 The vendor's public `v0.5.7` tag is an unrelated installer-only README tree,
 not newer application source. It must not be merged over this source tree.
 This fork does **not** claim complete source recovery or parity with 0.5.7.
@@ -128,6 +130,19 @@ Disconnect the old tunnel before connecting the new one.
 The example profiles are templates for legacy per-game mode, not verified game-server lists.
 They are not read or required by self-host full tunnel. Published startup is verified;
 native routing/DNS/IPv6 connection and teardown remain untested on this machine.
+
+## v0.0.1 distributable
+
+Use `python installer/build.py --iscc "C:\path\ISCC.exe" --output-dir "C:\path\Builds"`.
+This publishes fresh, self-contained, non-AOT Windows x64 UI/service outputs, includes the
+runtime and official signed Wintun DLL, checks overlapping files before merging, and bundles
+no PSK/config/device credentials. It never installs or launches on the build PC.
+
+Installer diagnostics preserve the failing stage and error code, verify service registration
+readback, and require disconnected full-tunnel IPC before reporting success. Existing Hollow
+services are refused; vendor 0.5.7 can remain installed. Automatic in-place update is disabled;
+update notifications open the release page. Remove only a previous Hollow installation first.
+Clean-machine v0.0.1 install/uninstall and live full-tunnel routing remain **untested**.
 
 ## Local build
 

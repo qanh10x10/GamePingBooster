@@ -19,13 +19,16 @@ namespace GamePingBooster.App.ViewModels;
 /// </summary>
 public sealed class SettingsViewModel : INotifyPropertyChanged
 {
-    private readonly bool _alreadyConfigured;
+    private readonly bool _alreadyCustomConfigured;
+    private readonly bool _alreadyHollowConfigured;
 
     public SettingsViewModel(IEnumerable<string>? currentEndpoints, bool alreadyConfigured,
-        string? currentLicenceUrl = "https://gamepingbooster.com", bool? qualitySharing = null)
+        string? currentLicenceUrl = "https://gamepingbooster.com", bool? qualitySharing = null,
+        bool alreadyHollowConfigured = false)
     {
         _endpoints = string.Join(Environment.NewLine, currentEndpoints ?? []);
-        _alreadyConfigured = alreadyConfigured;
+        _alreadyCustomConfigured = alreadyConfigured;
+        _alreadyHollowConfigured = alreadyHollowConfigured;
         _licenceUrl = currentLicenceUrl ?? string.Empty;
         _initialQualitySharing = qualitySharing;
         _qualitySharing = qualitySharing ?? true;
@@ -53,6 +56,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     /// </summary>
     public bool RelaySettingsChanged =>
         !string.IsNullOrWhiteSpace(Psk) ||
+        !string.IsNullOrWhiteSpace(HollowPsk) ||
         LicenceUrl.Trim() != _initialLicenceUrl ||
         !EndpointList.SequenceEqual(_initialEndpoints, StringComparer.OrdinalIgnoreCase);
 
@@ -117,10 +121,23 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     }
 
     public string PskWatermark =>
-        Loc.T(_alreadyConfigured ? "settings.psk.placeholderKeep" : "settings.psk.placeholderNew");
+        Loc.T(_alreadyCustomConfigured ? "settings.psk.placeholderKeep" : "settings.psk.placeholderNew");
 
     public string PskHint =>
-        Loc.T(_alreadyConfigured ? "settings.psk.hintKeep" : "settings.psk.hintNew");
+        Loc.T(_alreadyCustomConfigured ? "settings.psk.hintKeep" : "settings.psk.hintNew");
+
+    private string _hollowPsk = string.Empty;
+    public string HollowPsk
+    {
+        get => _hollowPsk;
+        set { if (Set(ref _hollowPsk, value)) { Raise(nameof(CanSave)); Saved = false; } }
+    }
+
+    public string HollowPskWatermark =>
+        Loc.T(_alreadyHollowConfigured ? "settings.hollowPsk.placeholderKeep" : "settings.hollowPsk.placeholderNew");
+
+    public string HollowPskHint =>
+        Loc.T(_alreadyHollowConfigured ? "settings.hollowPsk.hintKeep" : "settings.hollowPsk.hintNew");
 
     // ------------------------------------------------------------------ language
     //
@@ -147,6 +164,8 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
             // are chosen in C# from how the machine is configured.
             Raise(nameof(PskWatermark));
             Raise(nameof(PskHint));
+            Raise(nameof(HollowPskWatermark));
+            Raise(nameof(HollowPskHint));
         }
     }
 
@@ -189,8 +208,9 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     /// weeks and the blank box was refused.
     /// </summary>
     public bool CanSave =>
-        (EndpointList.Count > 0 || !string.IsNullOrWhiteSpace(LicenceUrl)) &&
-        (EndpointList.Count == 0 || _alreadyConfigured || !string.IsNullOrWhiteSpace(Psk));
+        (EndpointList.Count > 0 || !string.IsNullOrWhiteSpace(LicenceUrl) ||
+         !string.IsNullOrWhiteSpace(HollowPsk) || _alreadyHollowConfigured) &&
+        (EndpointList.Count == 0 || _alreadyCustomConfigured || !string.IsNullOrWhiteSpace(Psk));
 
     private string? _error;
     public string? Error

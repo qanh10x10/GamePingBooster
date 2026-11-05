@@ -52,7 +52,7 @@
                AcceptsReturn="True" TextWrapping="NoWrap"
                MinHeight="88" MaxHeight="140"
                VerticalContentAlignment="Top"
-               PlaceholderText="ping.hollow-agent.xyz:51820" />
+               PlaceholderText="relay.example.com:51820" />
       <TextBlock Classes="hint" Text="{DynamicResource settings.relays.hint}" />
     </StackPanel>
 
@@ -60,6 +60,12 @@
       <TextBlock Classes="label" Text="{DynamicResource settings.psk}" />
       <TextBox Text="{Binding Psk}" PasswordChar="*" PlaceholderText="{Binding PskWatermark}" />
       <TextBlock Classes="hint" Text="{Binding PskHint}" />
+    </StackPanel>
+
+    <StackPanel>
+      <TextBlock Classes="label" Text="{DynamicResource settings.hollowPsk}" />
+      <TextBox Text="{Binding HollowPsk}" PasswordChar="*" PlaceholderText="{Binding HollowPskWatermark}" />
+      <TextBlock Classes="hint" Text="{Binding HollowPskHint}" />
     </StackPanel>
 
     <StackPanel>

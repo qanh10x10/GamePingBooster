@@ -1,0 +1,38 @@
+Hollow Ping Booster v0.0.2 - Windows 10/11 x64
+
+Independent fork based on public Game Ping Booster source 0.3.9, not recovered 0.5.7 source.
+MIT: Copyright (c) 2026 Hollow. The inherited MIT notice remains in LICENSE.
+
+Includes UI, Windows service, .NET runtime and official signed Wintun DLL.
+No PSK, token or device private key is bundled. No tunnel connects during setup.
+Administrator approval is required. Setup and app binaries are unsigned.
+
+The vendor Game Ping Booster 0.5.7 can remain installed:
+  Hollow service / IPC: HollowPingBooster
+  Install: Program Files\Hollow Ping Booster
+  Data: ProgramData\HollowPingBooster
+Never connect both tunnels simultaneously: Windows routing/DNS are machine-wide.
+The shared Wintun driver and personal configuration are preserved on uninstall.
+
+If a previous Hollow service exists, close Hollow and uninstall only Hollow first.
+This setup deliberately does not replace a running installation. A failed old payload
+with no service can be retried only if its manifest and identity are intact.
+
+After setup, select the built-in server "Singapore West" in the main window.
+Open Settings and enter its PSK in the Hollow VPS key field.
+  Built-in address: ping.hollow-agent.xyz:51820 (shown by the app; not a custom relay entry)
+  Custom relay addresses: leave empty unless you operate another relay
+  Licence server: empty
+  PSK: obtain separately from the relay owner and enter once.
+An unset PSK disables Connect; it must NOT prevent installing or starting the service.
+
+If setup fails, the dialog shows ERROR [step]: cause, and the setup-log path.
+Send the corresponding Setup Log*.txt from the installing user's TEMP directory.
+Do not send PSK, config.json, token files or device keys.
+If trust verification fails, repair Windows certificate trust; do not disable antivirus
+or bypass the driver's signature check.
+
+Build verification is not a clean-machine installation test. If this PC alone fails,
+its setup log is required to establish the cause. Client setup does not change the VPS.
+Full tunnel carries IPv4 and blocks outbound IPv6 while connected (loopback preserved).
+Disconnect returns to direct networking; this is not a kill switch or an encryption guarantee.

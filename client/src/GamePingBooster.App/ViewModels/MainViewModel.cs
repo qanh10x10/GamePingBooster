@@ -251,6 +251,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
             Raise(nameof(IsBusy));
             Raise(nameof(CanPressAction));
             Raise(nameof(CanChooseRelay));
+            Raise(nameof(RouteText));
         }
     }
 
@@ -296,13 +297,14 @@ public sealed class MainViewModel : INotifyPropertyChanged
         private set
         {
             if (!Set(ref _fullTunnel, value)) return;
-            foreach (var property in new[] { nameof(GameMode), nameof(StartHint), nameof(ScopeLabel), nameof(GameText), nameof(HasGames), nameof(GameTextBrush) })
+            foreach (var property in new[] { nameof(GameMode), nameof(StartHint), nameof(ScopeLabel), nameof(GameText), nameof(HasGames), nameof(GameTextBrush), nameof(ScopeTip), nameof(RouteText) })
                 Raise(property);
         }
     }
     public bool GameMode => !FullTunnel;
     public string StartHint => Loc.T(FullTunnel ? "fullTunnel.hint" : "action.connect.hint");
     public string ScopeLabel => Loc.T(FullTunnel ? "fullTunnel.scope" : "main.label.game");
+    public string ScopeTip => FullTunnel ? Loc.T("fullTunnel.policy.tip") : Loc.T("main.games.tip");
 
     public bool NeedsSetup => !Configured;
 
@@ -367,8 +369,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     public bool HasRelayChoiceNote => !string.IsNullOrEmpty(RelayChoiceNote);
 
-    /// <summary>Only worth showing when there is more than one relay to choose from.</summary>
-    public bool ShowRelayChoice => RelayItems.Count > 2;
+    /// <summary>Show Automatic plus any real server, including the built-in Singapore West server.</summary>
+    public bool ShowRelayChoice => RelayItems.Count > 1;
 
     /// <summary>Locked while a connect is on its way, like the button: nothing changes under a connect in progress.</summary>
     public bool CanChooseRelay => !IsBusy;
@@ -453,8 +455,10 @@ public sealed class MainViewModel : INotifyPropertyChanged
     private long? _relaysAskedForProfile;
     private bool _relaysAsked;
 
-    /// <summary>The configured endpoints, for the settings screen to open with. Never the key.</summary>
+    /// <summary>The configured custom endpoints, for the settings screen to open with. Never a built-in endpoint or key.</summary>
     public IReadOnlyList<string> RelayEndpoints { get; private set; } = [];
+    public bool HasHollowKey { get; private set; }
+    public bool HasCustomKey { get; private set; }
 
     private string? _error;
     public string? Error
@@ -898,7 +902,9 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public string RelayTip => HomeRelayName is { } home && RegionPaths.Length > 0
         ? Loc.F("relay.tip.regionsHome", home, RegionPaths)
         : RelayText;
-    public string RouteText => ActiveRoutes > 0 ? Loc.F("value.ranges", ActiveRoutes) : Loc.T("value.none");
+    public string RouteText => FullTunnel && State is TunnelState.Connected
+        ? Loc.T("fullTunnel.routes")
+        : ActiveRoutes > 0 ? Loc.F("value.ranges", ActiveRoutes) : Loc.T("value.none");
 
     /// <summary>
     /// A dash only when the service did not report on this at all.
@@ -1141,6 +1147,7 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         Raise(nameof(StartHint));
         Raise(nameof(ScopeLabel));
+        Raise(nameof(ScopeTip));
         if (LastStatus is { } status) ApplyServiceText(status);
         else if (_detailKey is { } key) Detail = Loc.T(key);
 
@@ -1291,6 +1298,8 @@ public sealed class MainViewModel : INotifyPropertyChanged
         HomeRelayName = status.HomeRelayName;
         RegionPathList = status.RegionPaths ?? [];
         RelayEndpoints = status.RelayEndpoints;
+        HasHollowKey = status.HasHollowKey;
+        HasCustomKey = status.HasCustomKey;
         Configured = status.Configured;
         LicenceUrl = status.LicenceUrl;
         LicenceRefusal = Say(status.LicenceRefusalCode, status.LicenceRefusalArgs, status.LicenceRefusal);

@@ -180,9 +180,9 @@ internal static partial class Program
             !text.Contains("taskkill.exe'), '/F /IM {#UiExe}'") && !text.Contains("taskkill.exe'), '/F /IM GamePingBooster.exe'"),
             "Installer still contains blind taskkill by executable image name!");
 
-        Check("Installer scopes UI process termination to its exact executable path",
-            text.Contains("$_.Path.Equals($appPath, [System.StringComparison]::OrdinalIgnoreCase)"),
-            "Installer must compare the exact executable path, not an unbounded folder prefix.");
+        Check("Installer never terminates running processes",
+            !text.Contains("Stop-Process") && !text.Contains("taskkill"),
+            "Fresh installer must not terminate either running app.");
         Check("Uninstall leaves the shared Wintun driver installed",
             !text.Contains("Parameters: \"--remove-driver\""),
             "Removing the machine-wide Wintun driver could break the preserved vendor app.");
@@ -203,10 +203,10 @@ internal static partial class Program
         var dir = AppContext.BaseDirectory;
         for (var i = 0; i < 10 && dir is not null; i++)
         {
-            var candidate = Path.Combine(dir, "installer", "GamePingBooster.iss");
+            var candidate = Path.Combine(dir, "installer", "HollowSetup.iss");
             if (File.Exists(candidate)) return candidate;
             dir = Path.GetDirectoryName(dir);
         }
-        return Path.Combine(AppContext.BaseDirectory, "installer", "GamePingBooster.iss");
+        return Path.Combine(AppContext.BaseDirectory, "installer", "HollowSetup.iss");
     }
 }

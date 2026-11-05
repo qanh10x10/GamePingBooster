@@ -52,6 +52,18 @@ public sealed class ServiceConfig
     /// <summary>Default relay id; empty means take the first relay in the profile.</summary>
     [JsonPropertyName("defaultRelayId")] public string? DefaultRelayId { get; set; }
 
+    /// <summary>Stable id of the built-in Hollow VPS server.</summary>
+    public const string BuiltInRelayId = "hollow-vps";
+
+    /// <summary>Display name of the built-in Hollow VPS server.</summary>
+    public const string BuiltInRelayName = "Singapore West";
+
+    /// <summary>Endpoint of the built-in Hollow VPS server.</summary>
+    public const string BuiltInRelayEndpoint = "ping.hollow-agent.xyz:51820";
+
+    /// <summary>Pre-shared key for the built-in Hollow VPS server.</summary>
+    [JsonPropertyName("hollowPsk")] public string HollowPsk { get; set; } = "";
+
     /// <summary>
     /// Self-hosted relays, set from the settings screen. Each is "host:port".
     ///
@@ -66,7 +78,7 @@ public sealed class ServiceConfig
     /// is the last thing a self-hosted setup should do. The profile still supplies the game
     /// address ranges, which is the part they cannot produce themselves.
     /// </summary>
-    [JsonPropertyName("relayEndpoints")] public List<string> RelayEndpoints { get; set; } = ["ping.hollow-agent.xyz:51820"];
+    [JsonPropertyName("relayEndpoints")] public List<string> RelayEndpoints { get; set; } = [];
 
     /// <summary>
     /// True when a key is present. NOT the same as "ready to connect", which also needs a relay
@@ -269,7 +281,7 @@ public sealed class ServiceConfig
             return new ServiceConfig
             {
                 LicenceUrl = "",
-                RelayEndpoints = ["ping.hollow-agent.xyz:51820"],
+                RelayEndpoints = [],
                 FullTunnel = true
             };
         }
@@ -283,6 +295,46 @@ public sealed class ServiceConfig
         if (!doc.RootElement.TryGetProperty("relayEndpoints", out _))
         {
             config.RelayEndpoints = [];
+        }
+
+        // Older Hollow builds stored the built-in server in relayEndpoints, where it was given a
+        // self-N id. Full-tunnel loading now adds that same endpoint as the named Singapore West
+        // entry, so leaving the old alias here would show the server twice. Migrate in memory only:
+        // never rewrite config.json while merely loading it, and never move Psk into HollowPsk.
+        if (config.FullTunnelEnabled && config.RelayEndpoints.Count > 0)
+        {
+            var previousDefault = config.DefaultRelayId;
+            var migratedEndpoints = new List<string>(config.RelayEndpoints.Count);
+            string? migratedDefault = previousDefault;
+            var removedBuiltin = false;
+
+            for (var i = 0; i < config.RelayEndpoints.Count; i++)
+            {
+                var endpoint = config.RelayEndpoints[i];
+                var oldId = $"self-{i + 1}";
+                var isBuiltin = string.Equals(endpoint.Trim(), BuiltInRelayEndpoint, StringComparison.OrdinalIgnoreCase);
+
+                if (string.Equals(previousDefault, oldId, StringComparison.OrdinalIgnoreCase))
+                {
+                    migratedDefault = isBuiltin
+                        ? BuiltInRelayId
+                        : $"self-{migratedEndpoints.Count + 1}";
+                }
+
+                if (isBuiltin)
+                {
+                    removedBuiltin = true;
+                    continue;
+                }
+
+                migratedEndpoints.Add(endpoint);
+            }
+
+            if (removedBuiltin)
+            {
+                config.RelayEndpoints = migratedEndpoints;
+                config.DefaultRelayId = migratedDefault;
+            }
         }
 
         return config;

@@ -70,7 +70,8 @@ public partial class MainWindow : SurfaceWindow
         // deliberately. See the set-relay verb in PipeServer.
         var dialog = new SettingsWindow
         {
-            DataContext = new SettingsViewModel(vm.RelayEndpoints, vm.Configured, vm.LicenceUrl, vm.QualitySharing),
+            DataContext = new SettingsViewModel(vm.RelayEndpoints, vm.HasCustomKey, vm.LicenceUrl, vm.QualitySharing,
+                vm.HasHollowKey),
         };
         dialog.Attach(_pipe);
         await dialog.ShowDialog(this);

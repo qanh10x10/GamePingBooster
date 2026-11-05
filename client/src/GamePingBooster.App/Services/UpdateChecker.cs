@@ -141,7 +141,7 @@ public sealed class UpdateChecker : IAsyncDisposable
             Timeout = TimeSpan.FromSeconds(15),
         };
         // GitHub refuses requests without a User-Agent.
-        http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("GamePingBooster", currentVersion));
+        http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("HollowPingBooster", currentVersion));
 
         var cached = ReadCache();
         var latest = await LatestTagAsync(http, ct).ConfigureAwait(false) ?? TagOf(cached);
@@ -380,7 +380,8 @@ public sealed record AvailableUpdate(
     long? InstallerSize = null)
 {
     /// <summary>Whether it can be installed from inside the app, or only reached on its page.</summary>
-    public bool CanInstall => InstallerUrl is not null && InstallerSha256 is not null;
+    // ponytail: v0.0.1 is fresh-install-only; enable after owned-service upgrade/rollback is tested.
+    public bool CanInstall => false;
 }
 
 public sealed class GitHubRelease

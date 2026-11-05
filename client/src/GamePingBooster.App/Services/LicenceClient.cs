@@ -77,7 +77,7 @@ public sealed class LicenceClient : IDisposable
         // tells those apart.
         var version = UpdateChecker.CurrentVersion() ?? "0.0.0";
         _http.DefaultRequestHeaders.TryAddWithoutValidation(VersionHeader, version);
-        _http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("GamePingBooster", version));
+        _http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("HollowPingBooster", version));
     }
 
     /// <summary>The header the licence server reads the app version from.</summary>

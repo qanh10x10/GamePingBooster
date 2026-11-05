@@ -118,6 +118,7 @@ public partial class SettingsWindow : SurfaceWindow
                 // it as null rather than an empty string so the intent is unambiguous on the
                 // other side.
                 Psk = string.IsNullOrWhiteSpace(vm.Psk) ? null : vm.Psk,
+                HollowPsk = string.IsNullOrWhiteSpace(vm.HollowPsk) ? null : vm.HollowPsk,
                 // Sent as a string every time, never null: the box's contents ARE the intent, so
                 // an emptied box has to clear the setting. Null is reserved for callers that
                 // mean "leave it alone", and this screen never means that - it shows the current

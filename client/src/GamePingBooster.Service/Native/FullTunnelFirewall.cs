@@ -242,16 +242,23 @@ internal sealed partial class FullTunnelFirewall : IDisposable
         var (permitFilter, cond, blockFilter) = BuildLayerFilterDescriptors(layerKey);
         permitFilter.FilterCondition = (nint)(&cond);
 
-        var err = FwpmFilterAdd0(_engineHandle, in permitFilter, 0, null);
-        if (err != NoError)
+        // WFP requires displayData.name; pin UTF-16 names until each native call has copied them.
+        fixed (char* permitName = "Hollow Ping Booster IPv6 loopback permit",
+                     blockName = "Hollow Ping Booster outbound IPv6 block")
         {
-            throw new InvalidOperationException($"Failed to add loopback permit filter for {desc} (error 0x{err:X8}).");
-        }
+            permitFilter.Name = (nint)permitName;
+            blockFilter.Name = (nint)blockName;
+            var err = FwpmFilterAdd0(_engineHandle, in permitFilter, 0, null);
+            if (err != NoError)
+            {
+                throw new InvalidOperationException($"Failed to add loopback permit filter for {desc} (error 0x{err:X8}).");
+            }
 
-        err = FwpmFilterAdd0(_engineHandle, in blockFilter, 0, null);
-        if (err != NoError)
-        {
-            throw new InvalidOperationException($"Failed to add block filter for {desc} (error 0x{err:X8}).");
+            err = FwpmFilterAdd0(_engineHandle, in blockFilter, 0, null);
+            if (err != NoError)
+            {
+                throw new InvalidOperationException($"Failed to add block filter for {desc} (error 0x{err:X8}).");
+            }
         }
     }
 

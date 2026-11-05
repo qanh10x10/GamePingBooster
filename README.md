@@ -1,7 +1,9 @@
-# Hollow Ping Booster
+# Hollow Ping Booster v0.0.2
 
-Self-host fork of Game Ping Booster. Windows settings: relay `ping.hollow-agent.xyz:51820`,
-existing VPS pre-shared key, and **empty Licence server**. See [self-host setup and verification](docs/HOLLOW-SELFHOST.md).
+Self-host fork of Game Ping Booster. The main window offers **Singapore West**
+(`ping.hollow-agent.xyz:51820`) as the built-in Hollow VPS server choice. Its pre-shared key is
+entered separately; the optional custom-relay fields stay empty unless somebody runs another relay.
+See [self-host setup and verification](docs/HOLLOW-SELFHOST.md).
 The public source base is 0.3.9; this fork does not claim source parity with the closed 0.5.7 release.
 
 Self-host mode defaults to **full tunnel**: IPv4 Internet traffic from all games and applications
@@ -55,6 +57,27 @@ result.
 
 Addresses that belong to no published cloud range are never added automatically; they are set
 aside for review. In practice they turn out to be voice chat or a CDN.
+
+## Hollow v0.0.2 Windows installer
+
+Build the credential-free, self-contained installer (Python 3, .NET SDK, Inno Setup 6.7+):
+
+```powershell
+python installer/build.py --iscc "C:\path\ISCC.exe" --output-dir "C:\path\Builds"
+```
+
+The result is `HollowPingBooster-Setup-0.0.2.exe`. It includes the .NET runtime, never includes a PSK,
+and does not install or launch itself on the build PC. The old `gpb.ps1 installer` packaging path
+is disabled; it must not be used to distribute this fork.
+
+Hollow uses SCM/IPC `HollowPingBooster`, directory `Program Files\Hollow Ping Booster` and data
+`ProgramData\HollowPingBooster`; vendor 0.5.7 may remain installed. Close/uninstall only a previous
+Hollow installation before installing; live upgrades are intentionally refused. In-app updates open
+the release page rather than starting an in-place upgrade. Setup verifies
+payload hashes, registers LocalSystem, and reads disconnected full-tunnel IPC before success.
+A failed setup shows `ERROR [step]: cause` and its log path. Send `Setup Log*.txt` from the
+installing user's `%TEMP%`, never config/PSK/token/device-key files. No claim is made that an
+unknown remote installation failure is caused by a version collision or fixed without its log.
 
 ## Build
 
@@ -197,37 +220,23 @@ meaning on another system and say so instead of failing oddly.
 | `./gpb status` | Asks the running service for its live counters over the named pipe: state, packets, drops, tunnel ping, loss, active routes. |
 | `./gpb logs` | Follows the service log in `%ProgramData%\HollowPingBooster\logs`. |
 | `./gpb check` | **Run this during a match.** Answers whether the game's traffic is really going through the relay or straight out of the network card. Outside a match it has nothing to look at. |
-| `./gpb lag [seconds]` | **Run this while it is lagging.** Pings every segment of the path on the same tick - your router, the ISP's access network, its domestic core, the relay, and a landmark on a different network in the same region - then names the one segment that is at fault. Reads the tunnel's own numbers from the service rather than opening a session of its own, so it is safe to run mid-match. Needs no Administrator. Each run writes a full report - trace, verdict and every raw sample - under `%LOCALAPPDATA%\GamePingBooster\lag-reports`, plus a one-line history entry that becomes the baseline later runs are judged against. |
+| `./gpb lag [seconds]` | **Run this while it is lagging.** Pings every segment of the path on the same tick - your router, the ISP's access network, its domestic core, the relay, and a landmark on a different network in the same region - then names the one segment that is at fault. Reads the tunnel's own numbers from the service rather than opening a session of its own, so it is safe to run mid-match. Needs no Administrator. Each run writes a full report - trace, verdict and every raw sample - under `%LOCALAPPDATA%\HollowPingBooster\lag-reports`, plus a one-line history entry that becomes the baseline later runs are judged against. |
 | `./gpb capture [udp\|tcp\|all]` | Waits for the game to start, captures its traffic, and appends the server addresses it sees to `observed.txt`. Safe to Ctrl+C. `udp` is the default and the only half that feeds the profile. `tcp` is for a lobby stuck on "Initializing...": it lists every TCP destination the game tried, marks the ones whose SYNs were never answered as **BLOCKED**, and writes that to `tcp-sessions.txt` - never to `observed.txt`. `all` does both. Close downloads while capturing TCP; they fill the capture. |
 | `./gpb profile` | Turns what `capture` collected into `profiles/pubg-vn.json`. No arguments. |
 | `./gpb diag` | Collects everything needed to diagnose a client-side problem into one text file, with the PSK redacted - including the three newest `./gpb lag` reports, so the bundle can answer whether the network was bad at the time. Attach it to a bug report. |
-| `./gpb installer [version]` | Publishes and then packages a setup `.exe` into `installer/dist/`. Needs [Inno Setup 6](https://jrsoftware.org/isdl.php). Give it a version to change one; see [Version](#version). |
+| `python installer/build.py --iscc <ISCC.exe> --output-dir <Builds>` | Self-contained Hollow Setup; never installs or launches it. Legacy `gpb installer` is disabled. |
 | `./gpb version [x.y.z]` | Prints the version everything is stamped with, or sets it. |
-| `./gpb reset` | **Deletes every trace of an installed Game Ping Booster from this machine**, so the installer can be tested on a development PC. See [Testing the installer](#testing-the-installer). |
+| `./gpb reset` | Legacy destructive tooling: **do not use** for this fork. Use Hollow's own uninstaller and a disposable test VM. |
 
 `capture` and `profile` are a pair and are how the profile grows: play, capture, rebuild. A
 profile is only as good as the number of matches behind it.
 
 ### Version
 
-One number for the whole product, in the `VERSION` file at the root of `application/`.
-
-`client/Directory.Build.props` reads it and stamps all four assemblies; `./gpb installer` reads
-the same file and hands it to Inno Setup with `/DAppVersion`. So the setup filename, the entry in
-Programs and Features, and the file properties of every `.exe` inside cannot disagree with each
-other.
-
-Change it as part of a build, which is when it matters:
-
-```
-./gpb installer 0.2.0        sets VERSION, then publishes and packages
-./gpb version                prints what it is now
-./gpb version 0.2.0          sets it without building anything
-```
-
-`x.y.z`, optionally with a suffix (`1.0.0-beta1`). The suffix reaches the product version and the
-installer filename; the numeric part alone goes into `AssemblyVersion` and `FileVersion`, because
-Windows will not accept anything else in a file version resource.
+`VERSION` is the fork's single version source. `client/Directory.Build.props` stamps
+assemblies, and `installer/build.py` passes the same version to Inno Setup. Edit `VERSION`
+before building, or use `./gpb version x.y.z`. The canonical installer accepts numeric
+`x.y.z`; never reuse vendor version numbers to imply source parity.
 
 ### Releasing
 
@@ -249,27 +258,14 @@ release commit and tag and carries on from where it stopped.
 
 ### Testing the installer
 
-An installer's job is to work on a machine that has never seen the software, and a development
-machine is the opposite of that: the service is already registered, the Wintun driver is already
-in the driver store, and there is already a device key, a licence token and a sealed profile.
-Installing over all that exercises almost none of the steps that matter.
+Use a disposable Windows 10/11 x64 VM, not an active gaming machine. Test first without
+vendor software, then with vendor 0.5.7 installed but its tunnel disconnected. Verify
+Hollow service/IPC startup without a PSK, setup error reporting, and uninstall. The shared
+Wintun driver and personal Hollow configuration must survive uninstall; vendor files,
+service and configuration must remain unchanged.
 
-```
-./gpb reset -DryRun          read what it would remove; runs without Administrator
-./gpb reset                  do it; needs an Administrator terminal
-./gpb reset -UseUninstaller  run the real uninstaller first, then sweep up what it missed
-```
-
-It removes the processes, the service, the firewall rule, the leftover routes, the virtual
-adapter and the Wintun driver, everything under `%ProgramData%`, `%LOCALAPPDATA%` and
-`%ProgramFiles%`, the shortcuts and the uninstall registry entry - then re-checks and prints
-whatever survived.
-
-Two things to know before the first run. It deletes `device.key`, so the machine becomes a **new
-device** to the licence server and spends a device slot; every identity file is copied to
-`.reset-backup/` first and `-KeepIdentity` skips the deletion. And it removes the Wintun driver,
-which is shared with anything else that uses Wintun - WireGuard, most likely - so use
-`-KeepDriver` if that applies to you.
+Do **not** run the inherited `gpb reset` / `tools/Reset-Machine.ps1`: it is legacy tooling,
+not an isolation-safe cleanup path for this fork. Use only Hollow's own uninstaller.
 
 ### Both halves
 
@@ -286,14 +282,15 @@ seconds from cold.
 
 ## Running it
 
-1. Declare your VPS in `gpb.conf` (copy `gpb.conf.example`; it is gitignored), then
-   `./gpb relay deploy`. See [relay/README.md](relay/README.md). Note the endpoint and PSK it
-   prints - they go into two different files, as step 3 says.
+1. To use the built-in **Singapore West** server, keep the custom relay list empty. To run another relay,
+   declare it in `gpb.conf` (copy `gpb.conf.example`; it is gitignored), then
+   `./gpb relay deploy`. See [relay/README.md](relay/README.md). Keep that endpoint and PSK
+   separate from the built-in Hollow VPS choice.
 2. Download the signed `wintun.dll` into `client/native/wintun/` - see
    [client/native/wintun/README.md](client/native/wintun/README.md).
-3. Copy `client/config.example.json` to `client/config.json` and fill in the PSK. Set the relay
-   from the app's Settings screen once it starts, or put its endpoint into `relayEndpoint` by
-   hand.
+3. Start Hollow Ping Booster. In the main window choose **Singapore West** and enter its PSK in
+   Settings. If using another relay, leave Singapore West unselected, enter the custom endpoint(s)
+   and custom PSK in the separate custom-relay fields. The installer never bundles either key.
 
    **Two files, and the split matters.** `config.json` is *this machine's settings* - the key,
    which relay to use, the adapter name. The profile is *content* - the game's IP ranges, and
@@ -301,12 +298,13 @@ seconds from cold.
    wholesale every time it is fetched from a server, so anything of yours written into it
    disappears silently on the next update.
 
-   There are two ways to name a relay, and they are mutually exclusive:
+   The built-in Hollow VPS and custom relays are separate trust domains:
 
    | Setting | Means |
    |---|---|
-   | `defaultRelayId` | Use one of the relays the profile lists, by id. |
-   | `relayEndpoints` | Use your own relays. **Replaces** the profile's list entirely - somebody running their own relays wants those, not a silent fallback to somebody else's. |
+   | Main-window server choice | Choose `Singapore West` (the built-in Hollow VPS) or a configured custom relay. |
+   | `defaultRelayId` | Use one of the relays the profile lists, by id, in licensed/profile mode. |
+   | `relayEndpoints` | Optional custom relay addresses. These never contain the built-in Hollow VPS endpoint and replace the profile's list when selected. |
 
    `relayEndpoints` is a list, and giving it more than one is worth doing: the client measures
    every relay it knows before connecting and takes the fastest, then falls back to the others
@@ -340,7 +338,10 @@ Things that go wrong first, in order of likelihood:
   is still in strict mode.
 - Small packets work but large ones hang - MTU or MSS clamping.
 
-## Status
+## Historical upstream status (not v0.0.1 acceptance evidence)
+
+The claims below describe upstream testing. For this fork, source/payload checks do not establish
+a successful clean-machine installation or live routing. See [verification boundaries](docs/HOLLOW-SELFHOST.md#verification-boundary).
 
 **The tunnel works end to end on real hardware** (verified 2026-08-30). Traffic goes from
 Windows, through the Wintun adapter, through the relay on a VPS, out to the internet and back -
@@ -364,4 +365,4 @@ Not yet done:
 
 ## License
 
-MIT - see [LICENSE](LICENSE).
+MIT - see [LICENSE](LICENSE). Hollow Ping Booster and its modifications are Copyright (c) 2026 Hollow. The inherited MIT notice remains in `LICENSE`.

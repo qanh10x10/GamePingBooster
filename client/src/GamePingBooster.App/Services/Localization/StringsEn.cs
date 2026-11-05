@@ -14,11 +14,14 @@ internal static class StringsEn
     internal static readonly IReadOnlyDictionary<string, string> Values = new Dictionary<string, string>
     {
         // ------------------------------------------------------------------ main window
+        ["main.title"] = "Hollow Ping Booster",
         ["main.menu.tip"] = "Menu",
         ["main.menu.settings"] = "Settings",
         ["fullTunnel.scope"] = "Scope",
-        ["fullTunnel.apps"] = "All games and apps",
-        ["fullTunnel.hint"] = "Full tunnel: all Internet traffic uses your VPS. IPv6 is blocked while connected.",
+        ["fullTunnel.apps"] = "All games and apps (IPv4)",
+        ["fullTunnel.hint"] = "Full tunnel (IPv4): all games & apps route through VPS. No kill switch during reconnect; DNS/IPv6 not secured by config alone.",
+        ["fullTunnel.routes"] = "Default IPv4 routes",
+        ["fullTunnel.policy.tip"] = "All games and apps IPv4 mode. No kill switch: traffic returns direct while reconnecting. DNS and IPv6 are not secured from configuration alone.",
         ["svc.fullTunnelConnected"] = "Full tunnel through {0} - all games and apps",
         ["main.menu.games"] = "Supported games",
         ["main.menu.reportLag"] = "Report lag",
@@ -134,7 +137,7 @@ internal static class StringsEn
         ["licence.expiresIn"] = "Licence expires in {0} min",
 
         ["pipe.closed"] = "The service closed the connection.",
-        ["pipe.unreachable"] = "Could not reach the background service. Check that the 'GamePingBooster' service is running.",
+        ["pipe.unreachable"] = "Could not reach the background service. Check that the 'HollowPingBooster' service is running.",
         ["pipe.lost"] = "Lost connection to the background service: {0}",
 
         ["pipe.notConnected"] = "Not connected to the background service.",
@@ -158,6 +161,11 @@ internal static class StringsEn
         ["settings.psk.placeholderNew"] = "44 characters",
         ["settings.psk.hintKeep"] = "A key is already saved. It is not shown here, and leaving this blank keeps it.",
         ["settings.psk.hintNew"] = "Printed by the relay's installer, next to the endpoint.",
+        ["settings.hollowPsk"] = "Singapore West key",
+        ["settings.hollowPsk.placeholderKeep"] = "Leave blank to keep the current key",
+        ["settings.hollowPsk.placeholderNew"] = "Enter the Singapore West key",
+        ["settings.hollowPsk.hintKeep"] = "A Singapore West key is already saved. It is not shown here, and leaving this blank keeps it.",
+        ["settings.hollowPsk.hintNew"] = "The key for the built-in Singapore West server. It is separate from custom relay keys.",
         ["settings.licence"] = "Licence server",
         ["settings.licence.hint"] =
             "Leave empty for your VPS and full tunnel (all games and apps, no game profiles). " +
